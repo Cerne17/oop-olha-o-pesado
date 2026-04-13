@@ -49,7 +49,6 @@ public:
     bool send(Protocol::MsgType type, const uint8_t* payload, size_t payload_len);
 
     // Convenience overloads for known payload structs
-    bool sendTelemetry(const Protocol::TelemetryPayload& data);
     bool sendImageChunk(const Protocol::ImageChunkHeader& header,
                         const uint8_t* jpeg_data, size_t jpeg_len);
     bool sendAck(uint16_t acked_seq, uint8_t status = 0);
@@ -127,4 +126,7 @@ private:
     static constexpr size_t TX_BUF_SIZE = Protocol::IMAGE_CHUNK_DATA_SIZE
                                         + sizeof(Protocol::ImageChunkHeader)
                                         + Protocol::OVERHEAD;
+
+    // Note: the ESP32 does not send DIRECTION_REF — it only receives it.
+    // Register a handler via onMessage(MsgType::DIRECTION_REF, cb).
 };

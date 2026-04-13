@@ -257,12 +257,6 @@ bool BluetoothComm::send(Protocol::MsgType type,
     return (frame_len > 0);
 }
 
-bool BluetoothComm::sendTelemetry(const Protocol::TelemetryPayload& data) {
-    return send(Protocol::MsgType::TELEMETRY,
-                reinterpret_cast<const uint8_t*>(&data),
-                sizeof(data));
-}
-
 bool BluetoothComm::sendImageChunk(const Protocol::ImageChunkHeader& header,
                                     const uint8_t* jpeg_data, size_t jpeg_len)
 {

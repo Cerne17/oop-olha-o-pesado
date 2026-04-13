@@ -1,19 +1,17 @@
 #include "WheelController.h"
-#include <math.h>
 
 WheelController* WheelController::_instance = nullptr;
 
 // ---------------------------------------------------------------------------
 WheelController::WheelController(WheelPins left, WheelPins right,
-                                  float wheelbase_m,
                                   float wheel_circumference_m,
                                   int   encoder_pulses_per_rev)
     : _left(left), _right(right),
-      _wheelbase_m(wheelbase_m),
       _wheel_circumference_m(wheel_circumference_m),
       _pulses_per_rev(encoder_pulses_per_rev)
 {
-    _instance = this;
+    _instance  = this;
+    _ref_mutex = xSemaphoreCreateMutex();
 }
 
 // ---------------------------------------------------------------------------
@@ -22,9 +20,9 @@ void WheelController::begin() {
     pinMode(_left.dir,  OUTPUT);
     pinMode(_right.dir, OUTPUT);
 
-    // PWM via LEDC
-    ledcSetup(LEFT_PWM_CHANNEL,  20000, PWM_RESOLUTION);
-    ledcSetup(RIGHT_PWM_CHANNEL, 20000, PWM_RESOLUTION);
+    // PWM via LEDC (20 kHz, 8-bit resolution)
+    ledcSetup(LEFT_PWM_CHANNEL,  20000, 8);
+    ledcSetup(RIGHT_PWM_CHANNEL, 20000, 8);
     ledcAttachPin(_left.pwm,  LEFT_PWM_CHANNEL);
     ledcAttachPin(_right.pwm, RIGHT_PWM_CHANNEL);
 
@@ -34,13 +32,105 @@ void WheelController::begin() {
     attachInterrupt(digitalPinToInterrupt(_left.enc_a),  _leftEncoderISR,  RISING);
     attachInterrupt(digitalPinToInterrupt(_right.enc_a), _rightEncoderISR, RISING);
 
-    stop();
-    Serial.println("[WHEEL] WheelController initialised");
+    // Make sure motors are off at startup
+    _driveMotor(LEFT_PWM_CHANNEL,  _left.dir,  0.0f);
+    _driveMotor(RIGHT_PWM_CHANNEL, _right.dir, 0.0f);
+
+    Serial.println("[WHEEL] WheelController initialised (smooth-motion mode)");
 }
 
 // ---------------------------------------------------------------------------
+// Reference input — called from the BT receive task
+// ---------------------------------------------------------------------------
+void WheelController::setDirectionRef(const Protocol::DirectionRefPayload& ref) {
+    if (xSemaphoreTake(_ref_mutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        _ref_angle_deg = ref.angle_deg;
+        _ref_stop      = ref.stop;
+        xSemaphoreGive(_ref_mutex);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Direction → target wheel power computation
+// ---------------------------------------------------------------------------
+WheelController::WheelTargets
+WheelController::_computeTargets(float angle_deg, bool stop) const {
+    if (stop) return { 0.0f, 0.0f };
+
+    float angle_rad = angle_deg * (M_PI / 180.0f);
+
+    // Decompose the angle into a forward and a turning component.
+    // Both are scaled by BASE_SPEED so the robot moves at a consistent pace.
+    float forward = BASE_SPEED * cosf(angle_rad);
+    float turn    = BASE_SPEED * sinf(angle_rad);
+
+    float left  = _clamp(forward - turn, -1.0f, 1.0f);
+    float right = _clamp(forward + turn, -1.0f, 1.0f);
+
+    return { left, right };
+}
+
+// ---------------------------------------------------------------------------
+// Control loop — runs at CONTROL_HZ (50 Hz) from RobotComm's control task
+// ---------------------------------------------------------------------------
+void WheelController::update() {
+    // --- 1. Read direction reference atomically ---
+    float   angle_deg;
+    uint8_t stop_flag;
+
+    if (xSemaphoreTake(_ref_mutex, 0) == pdTRUE) {
+        angle_deg = _ref_angle_deg;
+        stop_flag = _ref_stop;
+        xSemaphoreGive(_ref_mutex);
+    } else {
+        // Could not acquire mutex this tick — keep previous targets
+        angle_deg = _ref_angle_deg;
+        stop_flag = _ref_stop;
+    }
+
+    // --- 2. Compute desired (target) wheel powers ---
+    WheelTargets target = _computeTargets(angle_deg, stop_flag != 0);
+
+    // --- 3. Rate limiter — slew current power toward target ---
+    //
+    // This is the key anti-abruptness mechanism.  No matter how fast the
+    // reference signal changes, the actual motor power can only change by
+    // MAX_DELTA_PER_TICK per update cycle.
+    auto slew = [](float current, float target) -> float {
+        float delta = target - current;
+        if (delta >  MAX_DELTA_PER_TICK) delta =  MAX_DELTA_PER_TICK;
+        if (delta < -MAX_DELTA_PER_TICK) delta = -MAX_DELTA_PER_TICK;
+        return current + delta;
+    };
+
+    _current_left  = slew(_current_left,  target.left);
+    _current_right = slew(_current_right, target.right);
+
+    // --- 4. Apply to hardware ---
+    _driveMotor(LEFT_PWM_CHANNEL,  _left.dir,  _current_left);
+    _driveMotor(RIGHT_PWM_CHANNEL, _right.dir, _current_right);
+}
+
+// ---------------------------------------------------------------------------
+// Emergency stop — immediate, bypasses rate limiter
+// ---------------------------------------------------------------------------
+void WheelController::emergencyStop() {
+    _current_left  = 0.0f;
+    _current_right = 0.0f;
+    _driveMotor(LEFT_PWM_CHANNEL,  _left.dir,  0.0f);
+    _driveMotor(RIGHT_PWM_CHANNEL, _right.dir, 0.0f);
+
+    if (xSemaphoreTake(_ref_mutex, portMAX_DELAY) == pdTRUE) {
+        _ref_stop = 1;
+        xSemaphoreGive(_ref_mutex);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Low-level motor write
+// ---------------------------------------------------------------------------
 void WheelController::_driveMotor(uint8_t channel, uint8_t dir_pin, float power) {
-    power = constrain(power, -1.0f, 1.0f);
+    power = _clamp(power, -1.0f, 1.0f);
     bool forward = (power >= 0.0f);
     uint8_t duty = static_cast<uint8_t>(fabsf(power) * 255.0f);
 
@@ -48,63 +138,8 @@ void WheelController::_driveMotor(uint8_t channel, uint8_t dir_pin, float power)
     ledcWrite(channel, duty);
 }
 
-void WheelController::setLeftPower(float power) {
-    _driveMotor(LEFT_PWM_CHANNEL, _left.dir, power);
-}
-
-void WheelController::setRightPower(float power) {
-    _driveMotor(RIGHT_PWM_CHANNEL, _right.dir, power);
-}
-
-void WheelController::setPower(float left, float right) {
-    setLeftPower(left);
-    setRightPower(right);
-}
-
-void WheelController::applyControl(const Protocol::WheelControlPayload& cmd) {
-    setPower(cmd.left_power, cmd.right_power);
-}
-
-void WheelController::stop() {
-    setPower(0.0f, 0.0f);
-}
-
 // ---------------------------------------------------------------------------
-void WheelController::update(uint32_t interval_ms) {
-    if (interval_ms == 0) return;
-
-    // Atomic snapshot of interrupt-driven counters
-    noInterrupts();
-    int32_t lp = _left_pulses;
-    int32_t rp = _right_pulses;
-    interrupts();
-
-    int32_t dl = lp - _prev_left_pulses;
-    int32_t dr = rp - _prev_right_pulses;
-    _prev_left_pulses  = lp;
-    _prev_right_pulses = rp;
-
-    float interval_min = interval_ms / 60000.0f;  // minutes
-
-    _left_rpm  = (static_cast<float>(dl) / _pulses_per_rev) / interval_min;
-    _right_rpm = (static_cast<float>(dr) / _pulses_per_rev) / interval_min;
-
-    // Linear speed = average RPM * circumference / 60
-    _speed_mps = ((_left_rpm + _right_rpm) / 2.0f)
-                 * _wheel_circumference_m / 60.0f;
-}
-
-Protocol::TelemetryPayload WheelController::getTelemetry() const {
-    return Protocol::TelemetryPayload {
-        _left_rpm,
-        _right_rpm,
-        _speed_mps,
-        static_cast<uint32_t>(millis())
-    };
-}
-
-// ---------------------------------------------------------------------------
-// ISR handlers
+// Encoder ISRs
 // ---------------------------------------------------------------------------
 void IRAM_ATTR WheelController::_leftEncoderISR() {
     if (_instance) _instance->_left_pulses++;

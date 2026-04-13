@@ -2,22 +2,15 @@
 communication_module.py — Top-level orchestrator on the computer side.
 
 Wires together:
-  Transport → FrameDecoder → [ImageAssembler | TelemetryCallback | AckHandler]
-                           ← FrameEncoder ← RobotController
+  Transport → FrameDecoder → ImageAssembler → ImageProcessor
+                           ← FrameEncoder  ← RobotController
 
 Two threads are spawned:
-  receive_loop  — reads bytes from the transport, feeds the decoder,
-                  dispatches decoded frames to the right subsystem.
-  send_loop     — drains RobotController's command queue and transmits
-                  WheelControl frames.
-
-Usage:
-
-    transport = SerialTransport("/dev/cu.RobotESP32-xxx")
-    module    = CommunicationModule(transport)
-    module.start()
-    # ... main thread can now do other work or just wait ...
-    module.stop()
+  receive_loop — reads bytes from the transport, feeds the decoder,
+                 dispatches decoded frames (currently only IMAGE_CHUNK,
+                 ACK, HEARTBEAT — telemetry is no longer part of the protocol).
+  send_loop    — drains RobotController's command queue and transmits
+                 DIRECTION_REF frames.
 """
 
 from __future__ import annotations
@@ -27,7 +20,7 @@ import time
 from typing import Optional
 
 from protocol  import (FrameDecoder, FrameEncoder, MsgType,
-                       TelemetryPayload, ImageChunkHeader, AckPayload)
+                       ImageChunkHeader, AckPayload)
 from transport import BluetoothTransport
 from image_assembler  import ImageAssembler
 from image_processor  import ImageProcessor
@@ -36,15 +29,13 @@ from robot_controller import RobotController
 
 class CommunicationModule:
     """
-    Ties all components together and manages the two I/O threads.
-
     Parameters
     ----------
-    transport        : BluetoothTransport — already-constructed transport (not yet connected)
+    transport        : BluetoothTransport — constructed but not yet connected
     image_processor  : ImageProcessor     — configured with detectors
     robot_controller : RobotController    — provides next_command()
-    send_interval_s  : float              — how often to poll for a new wheel command (s)
-    reconnect        : bool               — attempt automatic reconnect on disconnect
+    send_interval_s  : float              — max wait for a new direction command
+    reconnect        : bool               — retry connection on link loss
     """
 
     def __init__(self,
@@ -60,14 +51,12 @@ class CommunicationModule:
         self._send_interval = send_interval_s
         self._reconnect  = reconnect
 
-        self._decoder    = FrameDecoder()
-        self._encoder    = FrameEncoder()
-        self._assembler  = ImageAssembler(frame_timeout_s=2.0)
+        self._decoder   = FrameDecoder()
+        self._encoder   = FrameEncoder()
+        self._assembler = ImageAssembler(frame_timeout_s=2.0)
 
-        # Wire assembler → image processor
+        # Wire assembler → image processor → robot controller
         self._assembler.on_frame_ready(self._ip.push_frame)
-
-        # Wire image processor → robot controller
         self._ip.on_result(self._rc.on_frame_result)
 
         self._stop_event = threading.Event()
@@ -75,34 +64,28 @@ class CommunicationModule:
         self._tx_thread: Optional[threading.Thread] = None
 
         # Stats
-        self._rx_frames   = 0
-        self._tx_frames   = 0
-        self._rx_images   = 0
-        self._rx_telemetry = 0
-        self._last_heartbeat = 0.0
+        self._rx_frames       = 0
+        self._tx_frames       = 0
+        self._rx_images       = 0
+        self._last_heartbeat  = 0.0
 
     # -------------------------------------------------------------------------
     # Lifecycle
     # -------------------------------------------------------------------------
     def start(self) -> None:
-        """Connect and start I/O threads.  Blocks until connected."""
         self._connect()
-
         self._ip.start()
-
         self._stop_event.clear()
+
         self._rx_thread = threading.Thread(
-            target=self._receive_loop, name="bt-rx", daemon=True
-        )
+            target=self._receive_loop, name="bt-rx", daemon=True)
         self._tx_thread = threading.Thread(
-            target=self._send_loop, name="bt-tx", daemon=True
-        )
+            target=self._send_loop,    name="bt-tx", daemon=True)
         self._rx_thread.start()
         self._tx_thread.start()
         print("[COMM] Communication module started")
 
     def stop(self) -> None:
-        """Signal all threads to stop and disconnect."""
         self._stop_event.set()
         self._rc.stop()
         self._ip.stop()
@@ -143,8 +126,7 @@ class CommunicationModule:
                 time.sleep(0.005)
                 continue
 
-            frames = self._decoder.feed(raw)
-            for frame in frames:
+            for frame in self._decoder.feed(raw):
                 self._rx_frames += 1
                 self._dispatch(frame.msg_type, frame.seq_num, frame.payload)
 
@@ -153,14 +135,12 @@ class CommunicationModule:
     def _dispatch(self, msg_type: MsgType, seq: int, payload: bytes) -> None:
         if msg_type == MsgType.IMAGE_CHUNK:
             self._handle_image_chunk(payload)
-        elif msg_type == MsgType.TELEMETRY:
-            self._handle_telemetry(payload)
         elif msg_type == MsgType.ACK:
             self._handle_ack(payload)
         elif msg_type == MsgType.HEARTBEAT:
             self._last_heartbeat = time.monotonic()
         else:
-            print(f"[COMM] Unknown message type: {msg_type!r}")
+            print(f"[COMM] Unexpected message type from robot: {msg_type!r}")
 
     def _handle_image_chunk(self, payload: bytes) -> None:
         hdr_size = ImageChunkHeader.SIZE
@@ -171,23 +151,15 @@ class CommunicationModule:
         self._assembler.on_chunk(header, chunk_data)
         self._rx_images += 1
 
-    def _handle_telemetry(self, payload: bytes) -> None:
-        if len(payload) < TelemetryPayload.SIZE:
-            return
-        t = TelemetryPayload.unpack(payload)
-        self._rc.on_telemetry(t.left_rpm, t.right_rpm,
-                              t.speed_mps, t.timestamp_ms)
-        self._rx_telemetry += 1
-
     def _handle_ack(self, payload: bytes) -> None:
         if len(payload) < AckPayload.SIZE:
             return
         ack = AckPayload.unpack(payload)
         if ack.status != 0:
-            print(f"[COMM] Remote NACK for seq {ack.acked_seq} (status {ack.status})")
+            print(f"[COMM] Robot NACK for seq {ack.acked_seq} (status {ack.status})")
 
     # -------------------------------------------------------------------------
-    # Send loop
+    # Send loop — drains DirectionCommand queue and sends DIRECTION_REF frames
     # -------------------------------------------------------------------------
     def _send_loop(self) -> None:
         while not self._stop_event.is_set():
@@ -197,7 +169,7 @@ class CommunicationModule:
             if not self._transport.is_connected():
                 continue
 
-            frame = self._encoder.encode_wheel_control(cmd.left, cmd.right)
+            frame = self._encoder.encode_direction_ref(cmd.angle_deg, cmd.stop)
             try:
                 self._transport.send(frame)
                 self._tx_frames += 1
@@ -207,17 +179,13 @@ class CommunicationModule:
         print("[COMM] Send loop ended")
 
     # -------------------------------------------------------------------------
-    # Stats / diagnostics
+    # Diagnostics
     # -------------------------------------------------------------------------
     def stats(self) -> dict:
         return {
-            "rx_frames":    self._rx_frames,
-            "tx_frames":    self._tx_frames,
-            "rx_images":    self._rx_images,
-            "rx_telemetry": self._rx_telemetry,
-            "pending_frames": self._assembler.pending_frame_count,
+            "rx_frames":       self._rx_frames,
+            "tx_frames":       self._tx_frames,
+            "rx_images":       self._rx_images,
+            "pending_frames":  self._assembler.pending_frame_count,
             "heartbeat_age_s": time.monotonic() - self._last_heartbeat,
-            "speed_mps":    self._rc.speed_mps,
-            "left_rpm":     self._rc.left_rpm,
-            "right_rpm":    self._rc.right_rpm,
         }
