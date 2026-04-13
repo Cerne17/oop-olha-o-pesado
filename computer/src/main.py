@@ -24,14 +24,12 @@ import time
 TRANSPORT    = "serial"                         # "serial" | "rfcomm"
 SERIAL_PORT  = "/dev/cu.RobotESP32-SerialPort"  # macOS serial port
 BT_MAC       = "AA:BB:CC:DD:EE:FF"              # ESP32 BT MAC (RFCOMM mode)
-BT_CHANNEL   = 1                                # RFCOMM channel
+BT_CHANNEL   = 1
 
 FRAME_WIDTH  = 320
-FRAME_HEIGHT = 240
 SHOW_PREVIEW = True    # open a live camera window (requires a display)
 # ============================================================
 
-# Append src/ to path so relative imports work when running from project root
 sys.path.insert(0, "src")
 
 from transport            import RFCOMMTransport, SerialTransport
@@ -52,9 +50,10 @@ def build_transport():
 def build_image_processor() -> ImageProcessor:
     processor = ImageProcessor(max_queue_size=4, show_preview=SHOW_PREVIEW)
 
-    # Example: detect red blobs.  Swap / extend for your robot's task.
+    # Detect red blobs — the robot steers toward the largest one.
+    # Replace / extend with hand-sign detectors when that module is ready.
     processor.add_detector(ColourBlobDetector(
-        label    = "red_target",
+        label    = "target",
         hsv_low  = (0,   120, 70),
         hsv_high = (10,  255, 255),
         min_area = 400,
@@ -64,13 +63,11 @@ def build_image_processor() -> ImageProcessor:
 
 
 def main() -> None:
-    transport    = build_transport()
-    ip           = build_image_processor()
-    controller   = RobotController(
-        frame_width  = FRAME_WIDTH,
-        frame_height = FRAME_HEIGHT,
-        base_speed   = 0.4,
-        steer_gain   = 0.8,
+    transport  = build_transport()
+    ip         = build_image_processor()
+    controller = RobotController(
+        frame_width = FRAME_WIDTH,
+        steer_gain  = 90.0,   # degrees of steering at full edge offset
     )
     module = CommunicationModule(
         transport        = transport,
@@ -80,7 +77,6 @@ def main() -> None:
         reconnect        = True,
     )
 
-    # Graceful shutdown on Ctrl+C
     def _shutdown(sig, frame):
         print("\n[MAIN] Shutting down…")
         module.stop()
@@ -91,16 +87,13 @@ def main() -> None:
 
     module.start()
 
-    # Print periodic stats on the main thread
     print("[MAIN] Running — press Ctrl+C to stop")
     while True:
         time.sleep(5.0)
         s = module.stats()
         print(
             f"[STATS] rx={s['rx_frames']} tx={s['tx_frames']} "
-            f"images={s['rx_images']} telem={s['rx_telemetry']} "
-            f"speed={s['speed_mps']:.2f} m/s  "
-            f"L={s['left_rpm']:.0f} rpm  R={s['right_rpm']:.0f} rpm  "
+            f"images={s['rx_images']} "
             f"hb_age={s['heartbeat_age_s']:.1f}s"
         )
 

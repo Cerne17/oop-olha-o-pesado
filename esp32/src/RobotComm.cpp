@@ -7,7 +7,6 @@ RobotComm::RobotComm(const RobotCommConfig& cfg)
       _bt(cfg.bt_device_name),
       _cam(cfg.camera_resolution, cfg.camera_quality),
       _wheels(cfg.left_wheel, cfg.right_wheel,
-              cfg.wheelbase_m,
               cfg.wheel_circumference_m,
               cfg.encoder_pulses_per_rev)
 {}
@@ -20,10 +19,10 @@ bool RobotComm::begin() {
         return false;
     }
 
-    // Register the wheel-control message handler
-    _bt.onMessage(Protocol::MsgType::WHEEL_CONTROL,
+    // Register handler for the direction reference coming from the computer
+    _bt.onMessage(Protocol::MsgType::DIRECTION_REF,
         [this](const uint8_t* payload, size_t len) {
-            _onWheelControl(payload, len);
+            _onDirectionRef(payload, len);
         });
 
     // Camera
@@ -32,33 +31,35 @@ bool RobotComm::begin() {
         return false;
     }
 
-    // Wheels
+    // Wheels (starts stopped; control task drives update() at 50 Hz)
     _wheels.begin();
 
     // Spawn FreeRTOS tasks
-    // BT task: high priority, small stack
-    xTaskCreatePinnedToCore(_btTask,       "bt_task",       4096,  this, 5, &_bt_task_handle,        1);
-    // Camera task: medium priority, large stack (JPEG encoding uses stack)
-    xTaskCreatePinnedToCore(_cameraTask,   "cam_task",      8192,  this, 3, &_cam_task_handle,       0);
-    // Telemetry task: low priority
-    xTaskCreatePinnedToCore(_telemetryTask,"telem_task",    2048,  this, 2, &_telemetry_task_handle, 1);
+    xTaskCreatePinnedToCore(_btTask,      "bt_task",      4096, this, 5,
+                            &_bt_task_handle,      1);
+    xTaskCreatePinnedToCore(_cameraTask,  "cam_task",     8192, this, 3,
+                            &_cam_task_handle,     0);
+    xTaskCreatePinnedToCore(_controlTask, "control_task", 2048, this, 4,
+                            &_control_task_handle, 1);
 
     Serial.println("[ROBOT] All systems go");
     return true;
 }
 
 // ---------------------------------------------------------------------------
-// Callback: received WHEEL_CONTROL frame from the host
+// DIRECTION_REF callback — runs in the BT task context
 // ---------------------------------------------------------------------------
-void RobotComm::_onWheelControl(const uint8_t* payload, size_t len) {
-    if (len < sizeof(Protocol::WheelControlPayload)) {
-        Serial.println("[ROBOT] WheelControl payload too short");
+void RobotComm::_onDirectionRef(const uint8_t* payload, size_t len) {
+    if (len < sizeof(Protocol::DirectionRefPayload)) {
+        Serial.println("[ROBOT] DIRECTION_REF payload too short");
         return;
     }
-    Protocol::WheelControlPayload cmd;
-    memcpy(&cmd, payload, sizeof(cmd));
-    Serial.printf("[ROBOT] WheelControl: L=%.2f R=%.2f\n", cmd.left_power, cmd.right_power);
-    _wheels.applyControl(cmd);
+    Protocol::DirectionRefPayload ref;
+    memcpy(&ref, payload, sizeof(ref));
+
+    Serial.printf("[ROBOT] DIRECTION_REF angle=%.1f stop=%d\n",
+                  ref.angle_deg, ref.stop);
+    _wheels.setDirectionRef(ref);
 }
 
 // ---------------------------------------------------------------------------
@@ -71,19 +72,21 @@ void RobotComm::_btTask(void* pv) {
     for (;;) {
         self->_bt.poll();
 
-        // Send periodic heartbeat so the host can detect connection loss
         uint32_t now = millis();
         if (now - last_heartbeat >= self->_cfg.heartbeat_interval_ms) {
             if (self->_bt.isConnected()) {
                 self->_bt.sendHeartbeat();
             } else {
-                // Safety: stop wheels if link is lost
-                self->_wheels.stop();
+                // Safety: engage emergency stop if Bluetooth link is lost.
+                // The control task will keep calling update() which will
+                // smoothly ramp down to zero once the rate-limited current
+                // reaches the target — but emergency stop cuts power immediately.
+                self->_wheels.emergencyStop();
             }
             last_heartbeat = now;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5));  // 5 ms polling interval
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
@@ -100,7 +103,6 @@ void RobotComm::_cameraTask(void* pv) {
         camera_fb_t* fb = self->_cam.capture();
         if (!fb) continue;
 
-        // Chunk and transmit the JPEG
         const size_t chunk_data = Protocol::IMAGE_CHUNK_DATA_SIZE;
         size_t total_chunks = (fb->len + chunk_data - 1) / chunk_data;
 
@@ -119,8 +121,6 @@ void RobotComm::_cameraTask(void* pv) {
                 Serial.printf("[CAM] Failed to send chunk %zu/%zu\n", i, total_chunks);
                 break;
             }
-
-            // Small yield so the BT task can interleave ACKs / control frames
             taskYIELD();
         }
 
@@ -129,18 +129,16 @@ void RobotComm::_cameraTask(void* pv) {
     }
 }
 
-void RobotComm::_telemetryTask(void* pv) {
+void RobotComm::_controlTask(void* pv) {
     RobotComm* self = static_cast<RobotComm*>(pv);
+    const TickType_t period = pdMS_TO_TICKS(1000 / WheelController::CONTROL_HZ);
     TickType_t last_wake = xTaskGetTickCount();
 
     for (;;) {
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(self->_cfg.telemetry_interval_ms));
-
-        self->_wheels.update(self->_cfg.telemetry_interval_ms);
-
-        if (self->_bt.isConnected()) {
-            Protocol::TelemetryPayload t = self->_wheels.getTelemetry();
-            self->_bt.sendTelemetry(t);
-        }
+        vTaskDelayUntil(&last_wake, period);
+        // Drive the smooth-motion control loop.
+        // update() reads the latest direction reference (set by _onDirectionRef),
+        // applies the rate limiter, and writes PWM to the H-bridge.
+        self->_wheels.update();
     }
 }

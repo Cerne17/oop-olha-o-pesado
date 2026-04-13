@@ -10,6 +10,11 @@ Frame layout (all multi-byte fields little-endian):
   [PAYLOAD]      variable
   [CRC16]        CRC-16/CCITT   (2 bytes, uint16-LE)
   [0xED][0xED]   end magic      (2 bytes)
+
+Data flow:
+  ESP32 → PC : IMAGE_CHUNK  (live JPEG stream)
+  PC → ESP32 : DIRECTION_REF (angle_deg + stop flag)
+  Both       : ACK, HEARTBEAT
 """
 
 from __future__ import annotations
@@ -38,10 +43,9 @@ IMAGE_CHUNK_DATA_SIZE = 512   # bytes per chunk (must match ESP32)
 # ---------------------------------------------------------------------------
 class MsgType(IntEnum):
     IMAGE_CHUNK   = 0x01
-    TELEMETRY     = 0x02
-    WHEEL_CONTROL = 0x03
-    ACK           = 0x04
-    HEARTBEAT     = 0x05
+    DIRECTION_REF = 0x02
+    ACK           = 0x03
+    HEARTBEAT     = 0x04
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +58,6 @@ class ImageChunkHeader:
     total_chunks: int   # uint16
     total_size:   int   # uint32
 
-    # '<HHHi' would be wrong — 'I' for unsigned 32-bit
     _FMT = '<HHHI'
     SIZE = struct.calcsize(_FMT)
 
@@ -70,41 +73,30 @@ class ImageChunkHeader:
 
 
 @dataclass
-class TelemetryPayload:
-    left_rpm:     float
-    right_rpm:    float
-    speed_mps:    float
-    timestamp_ms: int   # uint32
+class DirectionRefPayload:
+    """
+    Reference signal sent from computer to robot.
 
-    _FMT = '<fffI'
+    angle_deg : direction to move, clockwise from straight forward.
+                  0°  = straight forward
+                 90°  = pivot right
+                -90°  = pivot left
+                ±180° = straight backward
+    stop      : when True the robot must come to a smooth stop.
+    """
+    angle_deg: float   # [-180.0, 180.0]
+    stop:      bool
+
+    _FMT = '<fB'
     SIZE = struct.calcsize(_FMT)
 
     def pack(self) -> bytes:
-        return struct.pack(self._FMT,
-                           self.left_rpm, self.right_rpm,
-                           self.speed_mps, self.timestamp_ms)
+        return struct.pack(self._FMT, self.angle_deg, int(self.stop))
 
     @classmethod
-    def unpack(cls, data: bytes) -> 'TelemetryPayload':
-        lr, rr, sp, ts = struct.unpack_from(cls._FMT, data)
-        return cls(lr, rr, sp, ts)
-
-
-@dataclass
-class WheelControlPayload:
-    left_power:  float   # [-1.0, 1.0]
-    right_power: float   # [-1.0, 1.0]
-
-    _FMT = '<ff'
-    SIZE = struct.calcsize(_FMT)
-
-    def pack(self) -> bytes:
-        return struct.pack(self._FMT, self.left_power, self.right_power)
-
-    @classmethod
-    def unpack(cls, data: bytes) -> 'WheelControlPayload':
-        lp, rp = struct.unpack_from(cls._FMT, data)
-        return cls(lp, rp)
+    def unpack(cls, data: bytes) -> 'DirectionRefPayload':
+        angle, stop_byte = struct.unpack_from(cls._FMT, data)
+        return cls(angle, bool(stop_byte))
 
 
 @dataclass
@@ -142,7 +134,7 @@ def crc16(data: bytes) -> int:
 # Frame encoder
 # ---------------------------------------------------------------------------
 class FrameEncoder:
-    """Stateless encoder — builds a complete binary frame."""
+    """Stateful encoder — assigns sequence numbers and builds binary frames."""
 
     def __init__(self) -> None:
         self._seq: int = 0
@@ -151,24 +143,27 @@ class FrameEncoder:
         seq = self._seq
         self._seq = (self._seq + 1) & 0xFFFF
 
-        # CRC input: type(1) + seq(2) + len(4) + payload
         crc_input = struct.pack('<BHI', int(msg_type), seq, len(payload)) + payload
         checksum = crc16(crc_input)
 
-        frame = (
+        return (
             FRAME_START
             + struct.pack('<BHI', int(msg_type), seq, len(payload))
             + payload
             + struct.pack('<H', checksum)
             + FRAME_END
         )
-        return frame
 
     # ---- convenience helpers ------------------------------------------------
 
-    def encode_wheel_control(self, left: float, right: float) -> bytes:
-        return self.encode(MsgType.WHEEL_CONTROL,
-                           WheelControlPayload(left, right).pack())
+    def encode_direction_ref(self, angle_deg: float, stop: bool = False) -> bytes:
+        """Build a DIRECTION_REF frame ready to send to the ESP32."""
+        return self.encode(MsgType.DIRECTION_REF,
+                           DirectionRefPayload(angle_deg, stop).pack())
+
+    def encode_stop(self) -> bytes:
+        """Convenience: direction reference that commands an immediate smooth stop."""
+        return self.encode_direction_ref(0.0, stop=True)
 
     def encode_heartbeat(self) -> bytes:
         return self.encode(MsgType.HEARTBEAT)
@@ -200,13 +195,11 @@ class FrameDecoder:
     def feed(self, data: bytes) -> list[DecodedFrame]:
         self._buf.extend(data)
         frames: list[DecodedFrame] = []
-
         while True:
             frame = self._try_extract()
             if frame is None:
                 break
             frames.append(frame)
-
         return frames
 
     def _try_extract(self) -> Optional[DecodedFrame]:
@@ -216,25 +209,21 @@ class FrameDecoder:
             self._buf.clear()
             return None
         if start > 0:
-            del self._buf[:start]   # discard junk before start
+            del self._buf[:start]
 
-        # Need at least HEADER_SIZE bytes
         if len(self._buf) < HEADER_SIZE:
             return None
 
-        # Parse header
         msg_type_raw, seq, payload_len = struct.unpack_from('<BHI', self._buf, 2)
 
-        # Sanity check
         if payload_len > 65536:
-            del self._buf[:2]       # skip this start marker and retry
+            del self._buf[:2]
             return None
 
         total_frame_len = OVERHEAD + payload_len
         if len(self._buf) < total_frame_len:
-            return None  # wait for more data
+            return None
 
-        # Extract payload + footer
         payload_start = HEADER_SIZE
         payload_end   = HEADER_SIZE + payload_len
         payload       = bytes(self._buf[payload_start:payload_end])
@@ -243,22 +232,19 @@ class FrameDecoder:
         end_bytes = bytes(self._buf[payload_end + 2 : payload_end + 4])
 
         if end_bytes != FRAME_END:
-            # Malformed — skip start marker and retry
             del self._buf[:2]
             return None
 
-        # Verify CRC
-        crc_input = bytes(self._buf[2 : payload_end])   # type + seq + len + payload
+        crc_input = bytes(self._buf[2:payload_end])
         if crc16(crc_input) != crc_received:
             del self._buf[:2]
             return None
 
-        # Consume the frame from the buffer
         del self._buf[:total_frame_len]
 
         try:
             msg_type = MsgType(msg_type_raw)
         except ValueError:
-            return None   # unknown type, skip silently
+            return None
 
         return DecodedFrame(msg_type=msg_type, seq_num=seq, payload=payload)

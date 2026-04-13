@@ -1,94 +1,157 @@
 #pragma once
 // =============================================================================
-// WheelController.h — PWM-based differential drive wheel controller.
+// WheelController.h — Differential-drive wheel controller with onboard
+//                     smooth-motion control loop.
 //
-// Each wheel is driven by an H-bridge that accepts:
-//   - PWM pin   : motor speed  (0–255)
-//   - DIR pin   : HIGH = forward, LOW = reverse
+// The computer sends a high-level DirectionRefPayload (angle + stop flag).
+// This class is responsible for translating that reference signal into
+// per-wheel PWM commands while enforcing smooth acceleration / deceleration,
+// so the robot never makes abrupt changes that could topple its cargo.
 //
-// Telemetry is gathered via encoder pulse counting (interrupt-driven).
-// Call update() at a fixed rate (e.g., every 50 ms) to refresh RPM readings.
+// Architecture
+// ─────────────
+//   setDirectionRef()  ← called by RobotComm when DIRECTION_REF arrives
+//        │
+//        ▼
+//   _target_left / _target_right  (desired wheel powers, protected by mutex)
+//        │
+//   update()  ← called by a dedicated FreeRTOS task at CONTROL_HZ
+//        │  1. Read targets atomically
+//        │  2. Slew current powers toward targets (rate limiter)
+//        │  3. Write PWM + direction to H-bridge
+//
+// Smooth motion
+// ─────────────
+// The rate limiter clamps how much current power may change per update tick.
+// At CONTROL_HZ = 50 Hz and MAX_DELTA_PER_TICK = 0.02:
+//   - Full stop → full speed takes 0 → 1.0 / 0.02 = 50 ticks = 1.0 s
+//   - Full speed → full stop takes the same
+// These constants are tunable in the source.
+//
+// Direction → wheel power mapping
+// ────────────────────────────────
+// Given angle_deg ∈ [-180, 180]:
+//   forward_component =  BASE_SPEED * cos(angle_rad)
+//   turn_component    =  BASE_SPEED * sin(angle_rad)
+//   left_power_target  = forward_component - turn_component
+//   right_power_target = forward_component + turn_component
+//
+// Examples (BASE_SPEED = 0.6):
+//   angle =   0°  →  L=+0.60  R=+0.60  (straight forward)
+//   angle =  90°  →  L=-0.60  R=+0.60  (pivot right)
+//   angle = -90°  →  L=+0.60  R=-0.60  (pivot left)
+//   angle =  45°  →  L=+0.18  R=+0.77  (curve right) [values approximate]
+//   angle = 180°  →  L=-0.60  R=-0.60  (straight backward)
 // =============================================================================
 
 #include <Arduino.h>
+#include <math.h>
 #include "Protocol.h"
 
 struct WheelPins {
     uint8_t pwm;    // PWM output to H-bridge enable
-    uint8_t dir;    // direction pin
-    uint8_t enc_a;  // encoder channel A (interrupt-capable pin)
+    uint8_t dir;    // direction output (HIGH = forward)
+    uint8_t enc_a;  // encoder channel A (interrupt-capable)
 };
 
 class WheelController {
 public:
-    // wheelbase_m: distance between the two wheels in metres (used for speed calc)
-    // wheel_circumference_m: metres per full wheel rotation
-    // encoder_pulses_per_rev: encoder pulses per full wheel revolution
+    // -------------------------------------------------------------------------
+    // Tuning constants — adjust to match your hardware
+    // -------------------------------------------------------------------------
+    static constexpr float BASE_SPEED         = 0.6f;   // power at full-forward (0–1)
+    static constexpr float MAX_DELTA_PER_TICK = 0.02f;  // max power change per update
+    static constexpr int   CONTROL_HZ         = 50;     // update() call frequency
+
+    // -------------------------------------------------------------------------
+    // Construction
+    // -------------------------------------------------------------------------
     WheelController(WheelPins left, WheelPins right,
-                    float wheelbase_m            = 0.20f,
                     float wheel_circumference_m  = 0.20f,
                     int   encoder_pulses_per_rev = 20);
 
-    // Attach interrupts and configure PWM channels.
+    // Attach encoder interrupts and configure LEDC PWM channels.
     void begin();
 
-    // Set wheel power in the range [-1.0, 1.0].
-    //   +1.0 = full speed forward
-    //   -1.0 = full speed reverse
-    //    0.0 = stop
-    void setLeftPower(float power);
-    void setRightPower(float power);
-    void setPower(float left, float right);  // convenience
+    // -------------------------------------------------------------------------
+    // Reference signal input — called from BT receive context
+    // -------------------------------------------------------------------------
 
-    // Apply a WheelControlPayload received from the host.
-    void applyControl(const Protocol::WheelControlPayload& cmd);
+    // Accept a DirectionRefPayload received from the host computer.
+    // Thread-safe (protected by mutex).
+    void setDirectionRef(const Protocol::DirectionRefPayload& ref);
 
-    // Refresh RPM and speed measurements. Call at a fixed interval.
-    // interval_ms: actual elapsed time since the last call to update().
-    void update(uint32_t interval_ms);
+    // -------------------------------------------------------------------------
+    // Control loop — call from a dedicated FreeRTOS task at CONTROL_HZ
+    // -------------------------------------------------------------------------
 
-    // Read the latest telemetry. Call after update().
-    Protocol::TelemetryPayload getTelemetry() const;
+    // 1. Read current direction reference (mutex-protected).
+    // 2. Compute desired wheel powers from angle/stop.
+    // 3. Slew actual powers toward desired powers (rate limiter).
+    // 4. Write PWM to H-bridge.
+    void update();
 
-    // Emergency stop — cuts power to both wheels immediately.
-    void stop();
+    // Immediate hardware stop — bypasses the rate limiter.
+    // Use only for emergency / safety shutdowns.
+    void emergencyStop();
+
+    // -------------------------------------------------------------------------
+    // Diagnostics (read-only, no mutex needed — floats are atomic on Xtensa)
+    // -------------------------------------------------------------------------
+    float currentLeftPower()  const { return _current_left;  }
+    float currentRightPower() const { return _current_right; }
 
 private:
+    // -------------------------------------------------------------------------
+    // Direction → target wheel power computation
+    // -------------------------------------------------------------------------
+    struct WheelTargets { float left; float right; };
+    WheelTargets _computeTargets(float angle_deg, bool stop) const;
+
+    // -------------------------------------------------------------------------
+    // Low-level motor drive
+    // -------------------------------------------------------------------------
+    void _driveMotor(uint8_t pwm_channel, uint8_t dir_pin, float power);
+
+    static float _clamp(float v, float lo, float hi) {
+        return v < lo ? lo : (v > hi ? hi : v);
+    }
+
+    // -------------------------------------------------------------------------
+    // Encoder ISRs
+    // -------------------------------------------------------------------------
+    static void IRAM_ATTR _leftEncoderISR();
+    static void IRAM_ATTR _rightEncoderISR();
+    static WheelController* _instance;   // singleton pointer for ISR access
+
+    // -------------------------------------------------------------------------
+    // Hardware configuration
+    // -------------------------------------------------------------------------
     WheelPins _left;
     WheelPins _right;
 
-    float _wheelbase_m;
     float _wheel_circumference_m;
     int   _pulses_per_rev;
 
-    // Encoder pulse counters — incremented in ISR.
-    // volatile because they are written in interrupt context.
-    volatile int32_t _left_pulses  { 0 };
-    volatile int32_t _right_pulses { 0 };
-
-    // Snapshot taken at the last update() call (for delta calculation).
-    int32_t _prev_left_pulses  { 0 };
-    int32_t _prev_right_pulses { 0 };
-
-    // Latest computed values
-    float _left_rpm   { 0.0f };
-    float _right_rpm  { 0.0f };
-    float _speed_mps  { 0.0f };
-
-    // LEDC channels for PWM (ESP32-specific)
     static constexpr uint8_t LEFT_PWM_CHANNEL  = 2;
     static constexpr uint8_t RIGHT_PWM_CHANNEL = 3;
-    static constexpr uint8_t PWM_FREQ_HZ       = 20;  // 20 kHz
-    static constexpr uint8_t PWM_RESOLUTION    = 8;   // 8-bit (0–255)
 
-    // Write motor command to hardware.
-    void _driveMotor(uint8_t pwm_channel, uint8_t dir_pin, float power);
+    // -------------------------------------------------------------------------
+    // State — direction reference (written by BT task, read by control task)
+    // -------------------------------------------------------------------------
+    SemaphoreHandle_t _ref_mutex;
+    float   _ref_angle_deg { 0.0f };
+    uint8_t _ref_stop      { 1 };    // start stopped until first command arrives
 
-    // ISR friends — must be static to be used as raw function pointers.
-    static void IRAM_ATTR _leftEncoderISR();
-    static void IRAM_ATTR _rightEncoderISR();
+    // -------------------------------------------------------------------------
+    // State — current (smoothed) wheel powers (only written by control task)
+    // -------------------------------------------------------------------------
+    float _current_left  { 0.0f };
+    float _current_right { 0.0f };
 
-    // Pointers to the single instance so the static ISRs can reach it.
-    // (Only one WheelController instance is expected per firmware.)
-    static WheelController* _instance;
+    // -------------------------------------------------------------------------
+    // Encoder counters (written by ISR)
+    // -------------------------------------------------------------------------
+    volatile int32_t _left_pulses  { 0 };
+    volatile int32_t _right_pulses { 0 };
 };
