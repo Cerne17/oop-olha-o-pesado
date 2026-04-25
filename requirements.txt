@@ -1,0 +1,8 @@
+# Unified requirements for all Python modules.
+# Install with:  pip install -r requirements.txt
+#           or:  pip install -e .   (preferred — also registers CLI entry points)
+
+numpy>=1.24
+opencv-python>=4.8
+pyserial>=3.5
+pynput>=1.7

@@ -1,0 +1,25 @@
+[build-system]
+requires      = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name            = "robot-vision"
+version         = "0.1.0"
+requires-python = ">=3.11"
+description     = "Autonomous cargo robot — computer vision + communication"
+dependencies = [
+    "numpy>=1.24",
+    "opencv-python>=4.8",
+    "pyserial>=3.5",
+    "pynput>=1.7",
+]
+
+# Console script entry points — available after `pip install -e .`
+[project.scripts]
+robot-vision  = "computer.main:main"
+robot-manual  = "computer.manual.main:main"
+
+# All Python packages live under computer/
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["computer*"]
