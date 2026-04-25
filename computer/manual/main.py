@@ -1,14 +1,12 @@
 """
-computer.manual.main — entry point for manual control mode.
+computer.manual.main — standalone manual control entry point (legacy).
 
-Wires: KeyboardController → RobotSender.
-Arrow keys control the robot; ESC or Ctrl+C to quit.
+Prefer the unified entry point:
+    python -m computer.main --phase 1   # socat virtual ports
+    python -m computer.main --phase 2   # physical robot BT
 
-Run from the repository root:
+This module is kept for direct invocation convenience:
     python -m computer.manual.main
-
-Or after `pip install -e .`:
-    robot-manual
 """
 
 from __future__ import annotations
