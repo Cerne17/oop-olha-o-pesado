@@ -125,6 +125,39 @@ The vision pipeline is a stub until implemented — see [computer/vision/](compu
 
 ---
 
+## run.sh — helper script
+
+`scripts/run.sh` is the recommended way to launch the computer module.
+It activates the virtual environment automatically and prints phase-specific
+reminders before starting.
+
+```
+bash scripts/run.sh <phase>
+
+Arguments:
+  phase   1 | 2 | 3
+
+Phase descriptions:
+  1   Manual control / TCP loopback to robot emulator
+  2   Manual control / physical robot over Bluetooth
+  3   Autonomous vision / physical robot + CAM over Bluetooth
+```
+
+What the script does:
+1. Resolves the repo root from its own path — safe to call from any directory.
+2. Sources `.venv/bin/activate` if a `.venv` directory exists; warns if not.
+3. Prints a phase-specific pre-flight reminder (e.g. "start the emulator first").
+4. Calls `exec python -m computer.main --phase N` — the script process is
+   replaced by Python, so Ctrl+C reaches the Python process directly.
+
+If you prefer to run without the script:
+```bash
+source .venv/bin/activate
+python -m computer.main --phase 1
+```
+
+---
+
 ## Component reference
 
 | Component | Directory | Language | Entry point |
@@ -133,6 +166,30 @@ The vision pipeline is a stub until implemented — see [computer/vision/](compu
 | Robot emulator | `emulator/` | Python ≥ 3.11 | `python emulator/src/main.py` |
 | Robot firmware | `robot/` | C++ / PlatformIO | `cd robot && pio run --target upload` |
 | CAM firmware | `cam/` | C++ / PlatformIO | `cd cam && pio run --target upload` |
+
+---
+
+## Developer skills
+
+The `skills/` directory contains self-contained instruction sets for common
+development tasks. Point an AI agent or a new developer at the relevant skill
+file instead of explaining the codebase from scratch.
+
+| Task | Skill file |
+|------|-----------|
+| Something broke in the computer communication layer | [skills/computer/communication/debug.md](skills/computer/communication/debug.md) |
+| Add a new transport (WebSocket, UDP, …) | [skills/computer/communication/implement_transport.md](skills/computer/communication/implement_transport.md) |
+| Add a new wire message type | [skills/computer/communication/add_message_type.md](skills/computer/communication/add_message_type.md) |
+| Implement a vision detector | [skills/computer/vision/implement_detector.md](skills/computer/vision/implement_detector.md) |
+| Implement a control strategy | [skills/computer/vision/implement_strategy.md](skills/computer/vision/implement_strategy.md) |
+| Debug robot firmware | [skills/robot/communication/debug.md](skills/robot/communication/debug.md) |
+| Add a new drive mode to the robot | [skills/robot/control/add_motion_mode.md](skills/robot/control/add_motion_mode.md) |
+| Debug the ESP32-CAM firmware | [skills/cam/communication/debug.md](skills/cam/communication/debug.md) |
+| Debug the Phase 1 emulator | [skills/emulator/debug.md](skills/emulator/debug.md) |
+| Add mock behaviour to the emulator | [skills/emulator/extend_mock.md](skills/emulator/extend_mock.md) |
+| Add a message type across Python + C++ + emulator | [skills/protocol/sync_message_type.md](skills/protocol/sync_message_type.md) |
+
+Full index: [skills/README.md](skills/README.md)
 
 ---
 

@@ -8,6 +8,7 @@ single codebase.
 For step-by-step setup and run instructions see **[RUNNING.md](RUNNING.md)**.
 For the full design specification see **[SPEC.md](SPEC.md)**.
 For the threading model see **[THREADS.md](THREADS.md)**.
+For agentic development skills see **[skills/README.md](skills/README.md)**.
 
 ---
 
@@ -55,7 +56,17 @@ For the threading model see **[THREADS.md](THREADS.md)**.
 │       └── protocol.py
 │
 ├── scripts/
-│   └── run.sh              Helper script to launch the computer for any phase
+│   └── run.sh              Activates .venv and launches computer/main.py --phase N
+│
+├── skills/                 Agentic development skill files
+│   ├── README.md           Index of all skills
+│   ├── computer/communication/   debug, implement_transport, add_message_type
+│   ├── computer/vision/          implement_detector, implement_strategy
+│   ├── robot/communication/      debug
+│   ├── robot/control/            add_motion_mode
+│   ├── cam/communication/        debug
+│   ├── emulator/                 debug, extend_mock
+│   └── protocol/                 sync_message_type (cross-cutting)
 │
 ├── SPEC.md                 Full system design specification
 ├── RUNNING.md              How to build, flash, and run each component
