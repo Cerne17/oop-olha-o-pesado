@@ -194,6 +194,11 @@ file instead of explaining the codebase from scratch.
 | Debug the Phase 1 emulator | [skills/emulator/debug.md](skills/emulator/debug.md) |
 | Add mock behaviour to the emulator | [skills/emulator/extend_mock.md](skills/emulator/extend_mock.md) |
 | Add a message type across Python + C++ + emulator | [skills/protocol/sync_message_type.md](skills/protocol/sync_message_type.md) |
+| Firmware upload fails (`Failed to connect`) | [skills/firmware/debug_upload.md](skills/firmware/debug_upload.md) |
+| Serial monitor shows garbage or permission denied | [skills/firmware/debug_serial.md](skills/firmware/debug_serial.md) |
+| ESP32-CAM: `camera init failed` or no frames | [skills/firmware/debug_cam_init.md](skills/firmware/debug_cam_init.md) |
+| Bluetooth device not found or port missing | [skills/firmware/debug_bluetooth.md](skills/firmware/debug_bluetooth.md) |
+| Change motor pins, BT name, FPS, or image quality | [skills/firmware/configure_hardware.md](skills/firmware/configure_hardware.md) |
 
 Full index: [skills/README.md](skills/README.md)
 

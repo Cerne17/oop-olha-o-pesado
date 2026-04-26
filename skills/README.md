@@ -51,3 +51,13 @@ Point an agent at the relevant skill file as part of your prompt:
 | Skill | When to use |
 |-------|-------------|
 | [sync_message_type.md](protocol/sync_message_type.md) | Add a new message type that touches Python, C++ firmware, AND emulator simultaneously |
+
+## Firmware (hardware setup and debugging)
+
+| Skill | When to use |
+|-------|-------------|
+| [firmware/debug_upload.md](firmware/debug_upload.md) | `Failed to connect to ESP32`, bootloader mode, FTDI wiring, upload speed |
+| [firmware/debug_serial.md](firmware/debug_serial.md) | Garbage output in serial monitor, `Permission denied`, wrong baud rate |
+| [firmware/debug_cam_init.md](firmware/debug_cam_init.md) | `camera init failed`, ribbon cable, frame streaming and quality issues |
+| [firmware/debug_bluetooth.md](firmware/debug_bluetooth.md) | BT device not found, serial port missing, `rfcomm bind`, wrong BT name |
+| [firmware/configure_hardware.md](firmware/configure_hardware.md) | Change motor pins, BT names, frame rate, JPEG quality, rate limiter |
