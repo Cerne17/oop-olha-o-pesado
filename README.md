@@ -6,6 +6,7 @@ application, a vision pipeline, and a software emulator — as first-class modul
 single codebase.
 
 For step-by-step setup and run instructions see **[RUNNING.md](RUNNING.md)**.
+For firmware wiring, drivers, and flashing see **[FIRMWARE.md](FIRMWARE.md)**.
 For the full design specification see **[SPEC.md](SPEC.md)**.
 For the threading model see **[THREADS.md](THREADS.md)**.
 For agentic development skills see **[skills/README.md](skills/README.md)**.
@@ -69,7 +70,8 @@ For agentic development skills see **[skills/README.md](skills/README.md)**.
 │   └── protocol/                 sync_message_type (cross-cutting)
 │
 ├── SPEC.md                 Full system design specification
-├── RUNNING.md              How to build, flash, and run each component
+├── FIRMWARE.md             Toolchain setup, wiring, and flashing guide for both ESP32 boards
+├── RUNNING.md              How to run each component (all phases)
 ├── THREADS.md              Threading model documentation
 └── pyproject.toml
 ```

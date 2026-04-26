@@ -24,6 +24,9 @@ pip install platformio
 # or install the PlatformIO IDE extension for VS Code
 ```
 
+For full wiring diagrams, driver installation, bootloader mode instructions,
+and configuration reference see **[FIRMWARE.md](FIRMWARE.md)**.
+
 ---
 
 ## Phase 1 — Manual control, no hardware
@@ -50,6 +53,8 @@ Press **Ctrl+C** in either terminal to stop. Each side reconnects automatically 
 ## Phase 2 — Manual control, physical robot
 
 ### 1. Flash the robot firmware
+
+> Full wiring and driver setup: [FIRMWARE.md §2–4](FIRMWARE.md).
 
 Connect the robot ESP32 via USB, then from the repo root:
 
@@ -96,8 +101,9 @@ cd cam
 pio run --target upload
 ```
 
-> The ESP32-CAM uses the AI Thinker board. Hold the **GPIO0** button during
-> power-on to enter flash mode, then release after upload starts.
+> The ESP32-CAM uses the AI Thinker board and requires a separate FTDI adapter
+> and a GPIO0–GND jumper to enter flash mode. See [FIRMWARE.md §3–5](FIRMWARE.md)
+> for the full wiring diagram and step-by-step procedure.
 
 ### 2. Pair both Bluetooth devices
 
