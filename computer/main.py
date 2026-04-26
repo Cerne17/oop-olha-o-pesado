@@ -39,13 +39,14 @@ class PhaseConfig:
     base_speed:   float = 0.5
 
 
-# Phase 1 -- manual, socat virtual ports (no hardware)
+# Phase 1 -- manual, TCP loopback to robot emulator
 # Phase 2 -- manual, physical robot over BT
 # Phase 3 -- autonomous vision, physical robot + CAM over BT
 PHASE_CONFIGS: dict[int, PhaseConfig] = {
     1: PhaseConfig(
-        robot_port = "/tmp/robot-computer",
-        cam_port   = None,
+        robot_port      = "localhost:5001",
+        robot_transport = "tcp",
+        cam_port        = None,
     ),
     2: PhaseConfig(
         robot_port = "/dev/cu.RobotESP32-SerialPort",  # macOS BT serial
@@ -66,11 +67,14 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
 # --------------------------------------------------------------------------- #
 
 def _make_transport(kind: str, port: str):
-    from computer.communication.transport import SerialTransport, RFCOMMTransport
+    from computer.communication.transport import SerialTransport, RFCOMMTransport, TCPTransport
     if kind == "serial":
         return SerialTransport(port)
     if kind == "rfcomm":
         return RFCOMMTransport(port)
+    if kind == "tcp":
+        host, port_str = port.rsplit(":", 1)
+        return TCPTransport(host, int(port_str))
     raise ValueError(f"Unknown transport kind: {kind!r}")
 
 

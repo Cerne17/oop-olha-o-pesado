@@ -5,3 +5,28 @@
 .vscode/ipch
 .vscode
 .claude
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

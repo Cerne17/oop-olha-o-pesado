@@ -117,3 +117,58 @@ class RFCOMMTransport(Transport):
 
     def is_connected(self) -> bool:
         return self._sock is not None
+
+
+class TCPTransport(Transport):
+    """
+    TCP client transport. Connects to a server at (host, port).
+    Intended for Phase 1 testing where the robot emulator acts as the TCP server.
+    """
+
+    def __init__(self, host: str, port: int) -> None:
+        self._host    = host
+        self._port    = port
+        self._sock: Optional[socket.socket] = None
+        self._tx_lock = threading.Lock()
+
+    def connect(self) -> None:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.connect((self._host, self._port))
+            sock.setblocking(False)
+            self._sock = sock
+        except OSError as exc:
+            sock.close()
+            raise ConnectionError(
+                f"TCPTransport: cannot connect to {self._host}:{self._port}: {exc}"
+            ) from exc
+
+    def disconnect(self) -> None:
+        if self._sock:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+            self._sock = None
+
+    def send(self, data: bytes) -> None:
+        with self._tx_lock:
+            if not self._sock:
+                raise ConnectionError("TCPTransport: not connected")
+            try:
+                self._sock.sendall(data)
+            except OSError as exc:
+                raise ConnectionError(f"TCPTransport send error: {exc}") from exc
+
+    def receive_available(self, max_bytes: int = 4096) -> bytes:
+        if not self._sock:
+            return b''
+        try:
+            return self._sock.recv(max_bytes)
+        except BlockingIOError:
+            return b''
+        except OSError as exc:
+            raise ConnectionError(f"TCPTransport recv error: {exc}") from exc
+
+    def is_connected(self) -> bool:
+        return self._sock is not None
