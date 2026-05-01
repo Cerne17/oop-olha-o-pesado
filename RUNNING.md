@@ -177,30 +177,27 @@ python -m computer.main --phase 1
 
 ## Developer skills
 
-The `skills/` directory contains self-contained instruction sets for common
-development tasks. Point an AI agent or a new developer at the relevant skill
-file instead of explaining the codebase from scratch.
+Project skills live in `.claude/skills/` and are auto-discovered by Claude Code.
+Invoke any skill with `/skill-name` in the Claude Code REPL, or run `/skills` to see the full index.
 
-| Task | Skill file |
-|------|-----------|
-| Something broke in the computer communication layer | [skills/computer/communication/debug.md](skills/computer/communication/debug.md) |
-| Add a new transport (WebSocket, UDP, …) | [skills/computer/communication/implement_transport.md](skills/computer/communication/implement_transport.md) |
-| Add a new wire message type | [skills/computer/communication/add_message_type.md](skills/computer/communication/add_message_type.md) |
-| Implement a vision detector | [skills/computer/vision/implement_detector.md](skills/computer/vision/implement_detector.md) |
-| Implement a control strategy | [skills/computer/vision/implement_strategy.md](skills/computer/vision/implement_strategy.md) |
-| Debug robot firmware | [skills/robot/communication/debug.md](skills/robot/communication/debug.md) |
-| Add a new drive mode to the robot | [skills/robot/control/add_motion_mode.md](skills/robot/control/add_motion_mode.md) |
-| Debug the ESP32-CAM firmware | [skills/cam/communication/debug.md](skills/cam/communication/debug.md) |
-| Debug the Phase 1 emulator | [skills/emulator/debug.md](skills/emulator/debug.md) |
-| Add mock behaviour to the emulator | [skills/emulator/extend_mock.md](skills/emulator/extend_mock.md) |
-| Add a message type across Python + C++ + emulator | [skills/protocol/sync_message_type.md](skills/protocol/sync_message_type.md) |
-| Firmware upload fails (`Failed to connect`) | [skills/firmware/debug_upload.md](skills/firmware/debug_upload.md) |
-| Serial monitor shows garbage or permission denied | [skills/firmware/debug_serial.md](skills/firmware/debug_serial.md) |
-| ESP32-CAM: `camera init failed` or no frames | [skills/firmware/debug_cam_init.md](skills/firmware/debug_cam_init.md) |
-| Bluetooth device not found or port missing | [skills/firmware/debug_bluetooth.md](skills/firmware/debug_bluetooth.md) |
-| Change motor pins, BT name, FPS, or image quality | [skills/firmware/configure_hardware.md](skills/firmware/configure_hardware.md) |
-
-Full index: [skills/README.md](skills/README.md)
+| Task | Skill |
+|------|-------|
+| Something broke in the computer communication layer | `/debug-computer-comm` |
+| Add a new transport (WebSocket, UDP, …) | `/implement-transport` |
+| Add a new wire message type (one link) | `/add-message-type` |
+| Add a new wire message type (Python + C++ + emulator) | `/sync-message-type` |
+| Implement a vision detector | `/implement-detector` |
+| Implement a control strategy | `/implement-strategy` |
+| Debug robot firmware | `/debug-robot-comm` |
+| Add a new drive mode to the robot | `/add-motion-mode` |
+| Debug the ESP32-CAM firmware | `/debug-cam-comm` |
+| Debug the Phase 1 emulator | `/debug-emulator` |
+| Add mock behaviour to the emulator | `/extend-emulator` |
+| Firmware upload fails (`Failed to connect`) | `/debug-upload` |
+| Serial monitor shows garbage or permission denied | `/debug-serial` |
+| ESP32-CAM: `camera init failed` or no frames | `/debug-cam-init` |
+| Bluetooth device not found or port missing | `/debug-bluetooth` |
+| Change motor pins, BT name, FPS, or image quality | `/configure-firmware` |
 
 ---
 

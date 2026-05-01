@@ -13,7 +13,7 @@ link you are modifying:
 | A (CAM) | `computer/communication/protocol.py` + `cam_receiver.py` | `cam/src/types/Protocol.h` + `CamComm.cpp` | N/A (CAM emulator not yet implemented) |
 | B (Robot) | `computer/communication/protocol.py` + `robot_sender.py` | `robot/src/types/Protocol.h` + `RobotComm.cpp` | `emulator/src/protocol.py` + `robot_emulator.py` |
 
-Also see the cross-cutting skill: `skills/protocol/sync_message_type.md`.
+Also see the cross-cutting skill: `/sync-message-type`.
 
 ## Steps
 
