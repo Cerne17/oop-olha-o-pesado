@@ -87,7 +87,7 @@ WheelSpeeds WheelController::_computeTargets(float angle_deg, float speed_ref) c
 
 ### 4. Expose mode switching via protocol (optional)
 If the mode should be set from the computer, add a new message type
-(`CONFIG = 0x04` on Link B) using the `skills/computer/communication/add_message_type.md`
+(`CONFIG = 0x04` on Link B) using the `/add-message-type`
 skill. If mode switching is only for local testing, call `setMode()` directly
 from `robot/src/main.cpp`.
 

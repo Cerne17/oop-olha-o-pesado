@@ -63,17 +63,17 @@ Both Python and C++ must use the same layout.
 ### 3. Apply changes in order
 
 **Python (computer) first — easiest to iterate:**
-Follow `skills/computer/communication/add_message_type.md` steps 1–4.
+Follow `/add-message-type` steps 1–4.
 
 **C++ firmware second:**
-Follow `skills/computer/communication/add_message_type.md` steps 5–6.
+Follow `/add-message-type` steps 5–6.
 The struct format in C++ must be `__attribute__((packed))`.
 
 Key alignment rule: ESP32 (Xtensa LX6) is little-endian. `memcpy` into a
 packed struct is safe. Do not use pointer casts on unaligned data.
 
 **Emulator third (Link B only):**
-Follow `skills/computer/communication/add_message_type.md` step 7.
+Follow `/add-message-type` step 7.
 
 ### 4. Update `MAX_PAYLOAD` in firmware if needed
 `robot/src/communication/RobotComm.h:77`:

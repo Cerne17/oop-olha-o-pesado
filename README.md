@@ -9,7 +9,7 @@ For step-by-step setup and run instructions see **[RUNNING.md](RUNNING.md)**.
 For firmware wiring, drivers, and flashing see **[FIRMWARE.md](FIRMWARE.md)**.
 For the full design specification see **[SPEC.md](SPEC.md)**.
 For the threading model see **[THREADS.md](THREADS.md)**.
-For agentic development skills see **[skills/README.md](skills/README.md)**.
+For agentic development skills see **`.claude/skills/`** (invoke `/skills` in Claude Code).
 
 ---
 
@@ -59,15 +59,14 @@ For agentic development skills see **[skills/README.md](skills/README.md)**.
 ├── scripts/
 │   └── run.sh              Activates .venv and launches computer/main.py --phase N
 │
-├── skills/                 Agentic development skill files
-│   ├── README.md           Index of all skills
-│   ├── computer/communication/   debug, implement_transport, add_message_type
-│   ├── computer/vision/          implement_detector, implement_strategy
-│   ├── robot/communication/      debug
-│   ├── robot/control/            add_motion_mode
-│   ├── cam/communication/        debug
-│   ├── emulator/                 debug, extend_mock
-│   └── protocol/                 sync_message_type (cross-cutting)
+├── .claude/skills/         Claude Code project skills (invoke with /skill-name)
+│   ├── skills/             Index — run /skills to list all available skills
+│   ├── sync-message-type/  Add a wire message type across Python + C++ + emulator
+│   ├── add-message-type/   Add a wire message on a single link
+│   ├── debug-computer-comm/, debug-robot-comm/, debug-cam-comm/, debug-emulator/
+│   ├── implement-transport/, implement-detector/, implement-strategy/
+│   ├── add-motion-mode/, extend-emulator/
+│   └── debug-upload/, debug-serial/, debug-cam-init/, debug-bluetooth/, configure-firmware/
 │
 ├── SPEC.md                 Full system design specification
 ├── FIRMWARE.md             Toolchain setup, wiring, and flashing guide for both ESP32 boards

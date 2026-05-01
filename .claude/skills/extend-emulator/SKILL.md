@@ -45,7 +45,7 @@ Then update `_display_loop` in `robot_emulator.py` to print `s['battery']`.
 
 ### Pattern B: New outbound message (emulator → computer)
 For mock data the computer needs to receive (telemetry, status), add a new
-message type using `skills/protocol/sync_message_type.md` and then:
+message type using `/sync-message-type` and then:
 
 1. Add `MSG_MY_STATUS = 0x04` to `emulator/src/protocol.py`.
 2. Add `build_my_status()` to `FrameEncoder`.
