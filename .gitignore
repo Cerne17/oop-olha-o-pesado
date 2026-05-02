@@ -23,3 +23,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Neural Networks
+*.pt
+*.task
