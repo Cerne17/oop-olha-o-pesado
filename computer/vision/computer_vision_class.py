@@ -108,13 +108,16 @@ class ComputerVision():
                 # Se encontrou um dono válido (mão acima do ombro e calculada)
                 if pessoa_dono is not None:
                     p_id = pessoa_dono["id"]
+
                     # Ignora se for o frame 1 e a pessoa ainda tiver o RG provisório (-1)
                     if p_id != -1:
-                        # Regra de Prioridade:
+
+                        if p_id not in gestos_das_pessoas:
+                            gestos_das_pessoas[p_id] = []
+
                         # Só atualiza o dicionário se a mão atual estiver fazendo um gesto válido
-                        # OU se a pessoa ainda não tiver nada registrado neste frame.
-                        if gesto_atual != "NENHUM" or p_id not in gestos_das_pessoas:
-                            gestos_das_pessoas[p_id] = gesto_atual
+                        if gesto_atual != "NENHUM":
+                            gestos_das_pessoas[p_id].append(gesto_atual)
 
                 # 4.3 Desenhos visuais (esqueleto)
                 img = draw_squeleton(img, hand_lms)
@@ -127,39 +130,36 @@ class ComputerVision():
             bbox = person["box"]
 
             # Pega o gesto dessa pessoa específica (se não estiver no dicionário, retorna "NENHUM")
-            gesto_dessa_pessoa = gestos_das_pessoas.get(p_id, "NENHUM")
+            gestos_dessa_pessoa = gestos_das_pessoas.get(p_id, [])
 
             # ESTADO 1: Procurando um mestre (alvo_rastreado_id é None)
             if self.alvo_rastreado_id is None:
-                # O robô está livre. Se alguém fizer um JOIA (ou ROCK), vira o alvo!
-                if gesto_dessa_pessoa == "ROCK": 
+                # O robô está livre. Se alguém fizer um duplo ROCK, vira o alvo!
+                if gestos_dessa_pessoa.count("ROCK") == 2: 
                     self.alvo_rastreado_id = p_id
                     print(f"Alvo TRAVADO! Seguindo a pessoa de ID: {p_id}")
                     
                 # Desenha como neutro (vermelho) enquanto não acha ninguém
                 img = draw_person_box(img, bbox, False) 
-                img = write_gesture_name(img, gesto_dessa_pessoa, bbox)
             
             # ESTADO 2: Focado no mestre
-            else:
-                if p_id == self.alvo_rastreado_id:
-                    # ESTE É O MESTRE! 
+            elif p_id == self.alvo_rastreado_id:
+                # ESTE É O MESTRE! 
 
-                    mestre_visto_agora = True
-                    self.frames_perdido = 0
+                mestre_visto_agora = True
+                self.frames_perdido = 0
 
-                    # Aqui você pode calcular a ref! (ex: posição X do centro da caixa)
-                    centro_x = (bbox[0] + bbox[2]) // 2
-                    ref = centro_x 
+                # Aqui você pode calcular a ref! (ex: posição X do centro da caixa)
+                centro_x = (bbox[0] + bbox[2]) // 2
+                ref = centro_x 
                     
-                    # Desenha a caixa verde e foca o texto nele
-                    img = draw_person_box(img, bbox, True) 
-                    img = write_gesture_name(img, "ALVO: " + gesto_dessa_pessoa, bbox)
+                # Desenha a caixa verde e foca o texto nele
+                img = draw_person_box(img, bbox, True) 
 
-                    # Condição de Cancelamento: Mestre faz um STOP
-                    if gesto_dessa_pessoa == "STOP":
-                        self.alvo_rastreado_id = None
-                        print("Alvo cancelado pelo gesto. Voltando ao modo de busca.")
+                # Condição de Cancelamento: Mestre faz um duplo ROCK
+                if gestos_dessa_pessoa.count("ROCK") == 1 and gestos_dessa_pessoa.count("STOP") == 1:
+                    self.alvo_rastreado_id = None
+                    print("Alvo cancelado pelo gesto. Voltando ao modo de busca.")
         
         # 6. GATILHO DE PERDA DO ALVO (TIMEOUT)
         # Se temos um alvo registrado, mas ele não apareceu no laço acima...
