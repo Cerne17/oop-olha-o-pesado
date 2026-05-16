@@ -9,10 +9,11 @@
 
 #include <stdint.h>
 
-// Pins wired to one side of the H-bridge
+// Pins wired to one side of the L298N H-bridge
 struct WheelPins {
-    uint8_t pwm;   // PWM output to H-bridge enable pin
-    uint8_t dir;   // direction pin (HIGH = forward)
+    uint8_t en;    // ENA/ENB  — PWM speed control
+    uint8_t dir;   // IN1/IN3  — HIGH = forward
+    uint8_t esq;   // IN2/IN4  — LOW  = forward (complement of dir)
 };
 
 // Normalised per-wheel power target or reading

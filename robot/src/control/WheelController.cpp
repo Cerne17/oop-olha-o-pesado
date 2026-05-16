@@ -14,18 +14,22 @@ void WheelController::begin() {
     // Configure LEDC PWM channels
     ledcSetup(LEFT_CHANNEL,  PWM_FREQ, PWM_RES_BITS);
     ledcSetup(RIGHT_CHANNEL, PWM_FREQ, PWM_RES_BITS);
-    ledcAttachPin(_left.pwm,  LEFT_CHANNEL);
-    ledcAttachPin(_right.pwm, RIGHT_CHANNEL);
+    ledcAttachPin(_left.en,  LEFT_CHANNEL);
+    ledcAttachPin(_right.en, RIGHT_CHANNEL);
 
     // Configure direction pins
-    pinMode(_left.dir,  OUTPUT);
-    pinMode(_right.dir, OUTPUT);
+    pinMode(_left.dir,   OUTPUT);
+    pinMode(_right.dir,  OUTPUT);
+    pinMode(_left.esq,   OUTPUT);
+    pinMode(_right.esq,  OUTPUT);
 
-    // Start stopped
+    // Start stopped — coast state (IN1=LOW, IN2=LOW, ENA=0)
     ledcWrite(LEFT_CHANNEL,  0);
     ledcWrite(RIGHT_CHANNEL, 0);
     digitalWrite(_left.dir,  LOW);
     digitalWrite(_right.dir, LOW);
+    digitalWrite(_left.esq,  LOW);
+    digitalWrite(_right.esq, LOW);
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +77,8 @@ void WheelController::emergencyStop() {
     _current_right = 0.0f;
     ledcWrite(LEFT_CHANNEL,  0);
     ledcWrite(RIGHT_CHANNEL, 0);
+    digitalWrite(_left.esq,  LOW);
+    digitalWrite(_right.esq, LOW);
 
     // Also zero the stored reference so the next update() stays stopped
     xSemaphoreTake(_ref_mutex, portMAX_DELAY);
@@ -103,9 +109,11 @@ void WheelController::_driveMotor(const WheelPins& pins,
                                    uint8_t channel, float power) {
     if (power >= 0.0f) {
         digitalWrite(pins.dir, HIGH);
+        digitalWrite(pins.esq, LOW);
         ledcWrite(channel, (uint32_t)(power * 255.0f));
     } else {
         digitalWrite(pins.dir, LOW);
+        digitalWrite(pins.esq, HIGH);
         ledcWrite(channel, (uint32_t)(-power * 255.0f));
     }
 }
