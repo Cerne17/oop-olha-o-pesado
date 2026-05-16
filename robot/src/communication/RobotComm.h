@@ -22,7 +22,7 @@
 
 class RobotComm {
 public:
-    static constexpr uint32_t WATCHDOG_TIMEOUT_MS = 3000;  // 3 s
+    static constexpr uint32_t WATCHDOG_TIMEOUT_MS = 5000;  // 5 s
 
     // bt_name must remain valid for the lifetime of this object.
     RobotComm(WheelController& wheel,
