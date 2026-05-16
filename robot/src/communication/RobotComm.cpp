@@ -170,9 +170,6 @@ void RobotComm::_dispatchFrame() {
     hdr_for_crc[5] = (uint8_t)(_rx.payload_len >> 16);
     hdr_for_crc[6] = (uint8_t)(_rx.payload_len >> 24);
 
-    uint16_t crc = Protocol::crc16(hdr_for_crc, 7);
-    crc = Protocol::crc16(_rx.payload_buf, _rx.payload_len);
-
     // Recompute over full header+payload
     uint8_t crc_input[7 + MAX_PAYLOAD];
     memcpy(crc_input, hdr_for_crc, 7);
