@@ -80,7 +80,8 @@ For the ESP32-CAM:
 - Expected output:
   ```
   === CAM ESP32 booting ===
-  [CAM] Bluetooth started as 'RobotCAM'
+  [CAM] WiFi IP: 192.168.1.43
+  [CAM] UDP listening on port 5006
   === Ready ===
   ```
 
@@ -114,7 +115,7 @@ terminal, or an IDE serial monitor.
 
 | Board | Expected serial output |
 |-------|------------------------|
-| Robot ESP32 | `=== Robot ESP32 booting ===` ... `=== Ready ===` |
-| ESP32-CAM | `=== CAM ESP32 booting ===` ... `[CAM] Bluetooth started as 'RobotCAM'` ... `=== Ready ===` |
+| Robot ESP32 | `=== Robot ESP32 booting ===` ... `[ROBOT] WiFi IP: ...` ... `=== Ready ===` |
+| ESP32-CAM | `=== CAM ESP32 booting ===` ... `[CAM] WiFi IP: ...` ... `=== Ready ===` |
 
-After `=== Ready ===`, the board is running and Bluetooth is advertising.
+After `=== Ready ===`, the board is running and listening for UDP packets.

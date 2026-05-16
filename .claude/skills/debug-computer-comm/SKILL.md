@@ -9,7 +9,7 @@ missing frames, CRC errors, heartbeat timeouts, or the robot/cam not responding.
 |------|------|
 | `computer/communication/cam_receiver.py` | Link A RX loop, heartbeat watchdog, ACK sender |
 | `computer/communication/robot_sender.py` | Link B TX loop, newest-wins queue, heartbeat sender |
-| `computer/communication/transport.py` | `SerialTransport`, `RFCOMMTransport`, `TCPTransport` |
+| `computer/communication/transport.py` | `TCPTransport`, `UDPTransport`, `SerialTransport`, `RFCOMMTransport` |
 | `computer/communication/protocol.py` | `FrameDecoder`, `FrameEncoder`, payload structs |
 | `computer/communication/assembler.py` | `ImageAssembler` — multi-chunk JPEG reassembly |
 | `computer/main.py` | `PHASE_CONFIGS` — ports, transport kinds |
@@ -24,10 +24,15 @@ For Phase 1 confirm the emulator is listening:
 ```bash
 python emulator/src/main.py --port 5001 --verbose
 ```
-For Phase 2/3 confirm the Bluetooth serial device exists:
+For Phase 2/3 confirm the robot/CAM IP and port in `PHASE_CONFIGS` match the
+board's boot output (visible in the serial monitor):
+```
+[ROBOT] WiFi IP: 192.168.1.42   [ROBOT] UDP listening on port 5005
+[CAM]   WiFi IP: 192.168.1.43   [CAM]   UDP listening on port 5006
+```
+Ensure computer and boards are on the same WiFi network. Test reachability:
 ```bash
-ls /dev/cu.Robot*          # macOS
-ls /dev/rfcomm*            # Linux
+ping 192.168.1.42
 ```
 
 ### 2. Add temporary verbose logging

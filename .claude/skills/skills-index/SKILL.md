@@ -27,8 +27,9 @@ Quick reference for all project skills. Invoke any skill with `/skill-name` in C
 
 | Skill | When to use |
 |-------|-------------|
-| `/debug-robot-comm` | BT pairing failures, watchdog triggers, wrong wheel behaviour |
+| `/debug-robot-comm` | WiFi connection issues, watchdog triggers, wrong wheel behaviour |
 | `/add-motion-mode` | Add spin-in-place, forward-only, or any new drive mode |
+| `/sanitize-cpp` | Opaque names, magic status codes, missing hardware docs, stale comments, lambdas that should be methods |
 
 ## CAM firmware
 
@@ -50,5 +51,4 @@ Quick reference for all project skills. Invoke any skill with `/skill-name` in C
 | `/debug-upload` | `Failed to connect to ESP32`, bootloader mode, FTDI wiring, upload speed |
 | `/debug-serial` | Garbage output in serial monitor, `Permission denied`, wrong baud rate |
 | `/debug-cam-init` | `camera init failed`, ribbon cable, frame streaming and quality issues |
-| `/debug-bluetooth` | BT device not found, serial port missing, `rfcomm bind`, wrong BT name |
-| `/configure-firmware` | Change motor pins, BT names, frame rate, JPEG quality, rate limiter |
+| `/configure-firmware` | Change motor pins, UDP port, frame rate, JPEG quality, rate limiter |

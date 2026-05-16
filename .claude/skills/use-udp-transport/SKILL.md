@@ -1,116 +1,88 @@
-# Skill: Use UDP transport for robot communication
+---
+name: use-udp-transport
+description: Reference for UDP/WiFi transport used on both Link A (CAM→Computer) and Link B (Computer→Robot). Use when debugging UDP config, updating PHASE_CONFIGS IPs/ports, or reviewing the firmware UDP implementation.
+---
 
-## Objective
-Switch Link B (Computer ↔ Robot) from Bluetooth/Serial to UDP over WiFi.
-The wire protocol is identical — only the physical carrier changes.
+# Skill: UDP transport for both links
+
+Both links use UDP over WiFi. Wire protocol is identical — only the
+physical carrier changed from Bluetooth/Serial.
+
+## Current state
+
+| Link | Direction | Transport | Port |
+|------|-----------|-----------|------|
+| A (CAM) | CAM → Computer | UDP/WiFi | CAM listens on 5006 |
+| B (Robot) | Computer → Robot | UDP/WiFi | Robot listens on 5005 |
 
 ## Key files
 | File | Role |
 |------|------|
 | `computer/communication/transport.py` | `UDPTransport` implementation |
 | `computer/main.py` | `_make_transport()` factory + `PHASE_CONFIGS` |
-| `robot/src/communication/RobotComm.cpp` | ESP32 receive loop (needs WiFi port) |
-| `SPEC.md §13` | UDP variant spec and firmware requirements |
+| `robot/src/communication/RobotComm.cpp` | Link B — WiFiUDP receive loop |
+| `cam/src/communication/CamComm.cpp` | Link A — WiFiUDP receive loop |
 
 ---
 
-## Computer side (already implemented)
+## Computer side
 
-`UDPTransport` is live. To activate it, edit the relevant `PhaseConfig` in
-`computer/main.py`:
+`UDPTransport` is live. Both phases 2 and 3 use it via `PHASE_CONFIGS`:
 
 ```python
 2: PhaseConfig(
-    robot_port      = "192.168.1.42:5005",   # ESP32 WiFi IP + listen port
+    robot_port      = "192.168.1.42:5005",
     robot_transport = "udp",
     cam_port        = None,
 ),
+3: PhaseConfig(
+    robot_port      = "192.168.1.42:5005",
+    robot_transport = "udp",
+    cam_port        = "192.168.1.43:5006",
+    cam_transport   = "udp",
+),
+```
+
+Update IPs to match what each board prints on boot:
+```
+[ROBOT] WiFi IP: 192.168.1.42
+[CAM]   WiFi IP: 192.168.1.43
 ```
 
 `_make_transport` parses `"host:port"` automatically when `kind == "udp"`.
 
-### local_port
-By default `UDPTransport` binds to an ephemeral port (`local_port=0`).
-If the ESP32 firmware sends ACK/HEARTBEAT frames back and needs a fixed
-destination port on the computer side, pass `local_port` explicitly:
+---
 
-```python
-# computer/main.py — _make_transport, "udp" branch
-return UDPTransport(host, int(port_str), local_port=5006)
-```
+## ESP32 firmware — address learning
+
+Both boards are UDP servers. Neither knows the computer's address until the
+first datagram arrives:
+
+- **Robot**: learns `_client_ip` / `_client_port` from first received datagram
+  in `_udpTask`. `_udpSend` silently drops until `_client_port > 0`.
+- **CAM**: same pattern. `_client_known` flag gates `_cameraTask` — streaming
+  does not start until first HEARTBEAT received.
+
+The computer must send the first packet. `RobotSender` sends a `HEARTBEAT`
+every 1 Hz when idle, which is sufficient.
 
 ---
 
-## ESP32 firmware side (requires manual porting)
+## WiFi credentials
 
-Current `RobotComm` uses `BluetoothSerial`. Porting to WiFi+UDP:
+Both boards use gitignored `credentials.h` files:
 
-### 1. Replace headers in `RobotComm.h`
-```cpp
-// Remove:
-#include <BluetoothSerial.h>
-// Add:
-#include <WiFi.h>
-#include <WiFiUdp.h>
+```bash
+cp robot/src/credentials.example.h robot/src/credentials.h
+# edit: WIFI_SSID and WIFI_PASS
+cd robot && pio run --target upload
+
+cp cam/src/credentials.example.h cam/src/credentials.h
+# edit: WIFI_SSID and WIFI_PASS
+cd cam && pio run --target upload
 ```
 
-Replace the `BluetoothSerial _bt` member with:
-```cpp
-WiFiUDP        _udp;
-IPAddress      _client_ip;   // set on first received datagram
-uint16_t       _client_port; // set on first received datagram
-uint16_t       _listen_port;
-```
-
-### 2. Update `begin()` in `RobotComm.cpp`
-```cpp
-void RobotComm::begin() {
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.status() != WL_CONNECTED) { delay(500); }
-    Serial.printf("[ROBOT] WiFi IP: %s\n", WiFi.localIP().toString().c_str());
-    _udp.begin(_listen_port);
-
-    xTaskCreatePinnedToCore(_udpTask,      "udp",     4096, this, 5, nullptr, 1);
-    xTaskCreatePinnedToCore(_controlTask,  "control", 2048, this, 4, nullptr, 1);
-    xTaskCreatePinnedToCore(_watchdogTask, "watchdog",2048, this, 3, nullptr, 1);
-}
-```
-
-### 3. Replace `_btTask` with `_udpTask`
-```cpp
-void RobotComm::_udpTask(void* arg) {
-    auto* self = static_cast<RobotComm*>(arg);
-    uint8_t buf[256];
-
-    for (;;) {
-        int pkt_size = self->_udp.parsePacket();
-        if (pkt_size > 0) {
-            self->_client_ip   = self->_udp.remoteIP();
-            self->_client_port = self->_udp.remotePort();
-            int n = self->_udp.read(buf, sizeof(buf));
-            for (int i = 0; i < n; i++) {
-                self->_feedByte(buf[i]);
-            }
-        }
-        vTaskDelay(pdMS_TO_TICKS(2));
-    }
-}
-```
-
-### 4. Replace `_bt.write()` in send helpers
-```cpp
-// _sendAck / _sendHeartbeat — replace:
-_bt.write(out, len);
-// with:
-if (_client_port > 0) {
-    _udp.beginPacket(_client_ip, _client_port);
-    _udp.write(out, len);
-    _udp.endPacket();
-}
-```
-
-The frame format, CRC, `_feedByte`, `_dispatchFrame`, `_controlTask`, and
-`_watchdogTask` are **unchanged**.
+`credentials.h` is in `.gitignore` — never commit it.
 
 ---
 
@@ -118,23 +90,24 @@ The frame format, CRC, `_feedByte`, `_dispatchFrame`, `_controlTask`, and
 
 Do **not** disable heartbeats. `RobotSender` sends `HEARTBEAT` at 1 Hz when
 idle. Without it the ESP32 watchdog fires `emergencyStop()` after 5 s of
-silence. At 20 Hz CONTROL_REF during active driving the watchdog is not at
-risk, but heartbeats cover the idle case.
+silence. The CAM also pauses streaming without a heartbeat reply.
 
 ---
 
 ## Verification
 
 ```bash
-# On the ESP32 serial monitor — confirm WiFi connected:
+# Robot: confirm WiFi connected in serial monitor:
 # [ROBOT] WiFi IP: 192.168.1.42
+# [ROBOT] UDP listening on port 5005
 
-# Run Phase 2 with UDP config:
+# Run Phase 2:
 bash scripts/run.sh 2
+# Arrow keys should move robot; no watchdog stops in serial monitor
 
-# Expected:
-# [ROBOT] Sender started
-# (arrow keys move robot)
+# Run Phase 3 with both boards:
+bash scripts/run.sh 3
+# Stats loop should show rx_frames and tx_frames increasing
 ```
 
 If frames arrive but the robot doesn't move, check that `_client_port > 0`

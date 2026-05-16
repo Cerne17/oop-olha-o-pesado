@@ -82,8 +82,8 @@ For agentic development skills see **`.claude/skills/`** (invoke `/skills` in Cl
 | Phase | Robot | Camera | Goal |
 |-------|-------|--------|------|
 | **1** | Emulator (TCP) | None | Validate protocol and control logic without hardware |
-| **2** | Physical ESP32 (BT) | None | Validate motion over real Bluetooth |
-| **3** | Physical ESP32 (BT) | Physical ESP32-CAM (BT) | Full autonomous operation |
+| **2** | Physical ESP32 (UDP/WiFi) | None | Validate motion over real WiFi |
+| **3** | Physical ESP32 (UDP/WiFi) | Physical ESP32-CAM (UDP/WiFi) | Full autonomous operation |
 
 ### Quick start — Phase 1
 
@@ -118,7 +118,7 @@ bash scripts/run.sh 2   # or 3
 │  IMAGE_CHUNK ──────────────────────────────────────────────►    │
 │             ◄─────────────────────────── ACK + HEARTBEAT        │
 └─────────────────────────────────────────────────────────────────┘
-                        Link A  (BT SPP / Serial)
+                        Link A  (UDP/WiFi)
 ┌─────────────────────────────────────────────────────────────────┐
 │  Computer  (computer/)                                          │
 │                                                                 │
@@ -129,7 +129,7 @@ bash scripts/run.sh 2   # or 3
 │                                                                 │
 │  KeyboardController ──────────[ControlSignal]──► RobotSender   │
 └─────────────────────────────────────────────────────────────────┘
-                        Link B  (BT SPP / Serial / TCP)
+                        Link B  (UDP/WiFi / TCP)
 ┌─────────────────────────────────────────────────────────────────┐
 │  Robot ESP32  (robot/)  OR  Emulator  (emulator/)               │
 │             ◄──────────────────────────── CONTROL_REF           │

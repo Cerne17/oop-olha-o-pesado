@@ -9,9 +9,9 @@ the AI Thinker ESP32-CAM.
 | Symptom | Likely cause |
 |---------|--------------|
 | `[CAM] FATAL: camera init failed -- halting` | Ribbon cable loose or reversed |
-| Serial monitor shows `=== Ready ===` but no frames arrive | Bluetooth not paired / computer not connecting |
+| Serial monitor shows `=== Ready ===` but no frames arrive | WiFi not connected / computer IP:port mismatch |
 | Frames arrive but image is corrupted or all black | Camera resolution or JPEG quality misconfigured |
-| Frame rate is lower than expected | JPEG size too large for BT throughput |
+| Frame rate is lower than expected | JPEG size too large for UDP throughput |
 
 ---
 
@@ -28,7 +28,8 @@ The OV2640 camera module attaches to the ESP32-CAM via a flat ribbon cable.
 6. Power on and check the serial monitor:
    ```
    === CAM ESP32 booting ===
-   [CAM] Bluetooth started as 'RobotCAM'
+   [CAM] WiFi IP: 192.168.1.43
+   [CAM] UDP listening on port 5006
    === Ready ===
    ```
    If `FATAL: camera init failed` still appears, try reseating once more or
@@ -49,7 +50,7 @@ If the serial monitor shows no output or only garbage, see
 
 ## Step 3 -- Verify frames are being sent (verbose check)
 
-With the board booted and Bluetooth paired, start the computer in Phase 3:
+With the board booted and WiFi connected, start the computer in Phase 3:
 ```bash
 python -m computer.main --phase 3
 ```
@@ -61,8 +62,8 @@ Expected log lines from `CamReceiver`:
 ```
 
 If no `IMAGE_CHUNK` lines appear:
-- Confirm the Bluetooth serial port name in `PHASE_CONFIGS[3]` matches the
-  paired device. See [debug_bluetooth.md](debug_bluetooth.md).
+- Confirm `PHASE_CONFIGS[3].cam_port` in `computer/main.py` matches the IP
+  printed by the CAM on boot. See [debug_cam_comm.md](debug_cam_comm.md).
 - Check that `CamReceiver` thread is alive (no `HEARTBEAT timeout` log).
 
 ---
@@ -78,9 +79,9 @@ config.jpeg_quality = 15;               // 0=best quality (largest), 63=lowest
 
 | Setting | Effect |
 |---------|--------|
-| Increase `jpeg_quality` (e.g. 20-30) | Smaller JPEG, more frames fit in BT bandwidth |
+| Increase `jpeg_quality` (e.g. 20-30) | Smaller JPEG, more frames fit in UDP bandwidth |
 | Decrease `jpeg_quality` (e.g. 5-10) | Larger JPEG, higher image quality |
-| `FRAMESIZE_VGA` | 640x480 -- much larger file, may saturate the BT link |
+| `FRAMESIZE_VGA` | 640x480 -- much larger file, may saturate the UDP link |
 
 After editing, rebuild and reflash:
 ```bash
@@ -95,12 +96,12 @@ pio run --target upload
 File: `cam/src/main.cpp`.
 
 ```cpp
-CamComm cam(6.0f, "RobotCAM");   // 6.0 fps target
+static constexpr float TARGET_FPS = 6.0f;
 ```
 
 Reduce `TARGET_FPS` if frames are being dropped:
 ```cpp
-CamComm cam(3.0f, "RobotCAM");
+static constexpr float TARGET_FPS = 3.0f;
 ```
 
 After editing, rebuild and reflash.

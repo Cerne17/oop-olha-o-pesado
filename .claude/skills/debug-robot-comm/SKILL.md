@@ -2,17 +2,17 @@
 
 ## Objective
 Diagnose connection, protocol, or control issues on the Robot ESP32 —
-Bluetooth pairing failures, missing CONTROL_REF frames, watchdog triggering
+WiFi connection issues, missing CONTROL_REF frames, watchdog triggering
 emergency stop, or incorrect wheel behaviour.
 
 ## Key files
 | File | Role |
 |------|------|
 | `robot/src/communication/RobotComm.h` | Task declarations, RX state machine types |
-| `robot/src/communication/RobotComm.cpp` | `_btTask`, `_controlTask`, `_watchdogTask`, `_dispatchFrame` |
+| `robot/src/communication/RobotComm.cpp` | `_udpTask`, `_controlTask`, `_watchdogTask`, `_dispatchFrame` |
 | `robot/src/control/WheelController.cpp` | `_computeTargets`, slew limiter, `emergencyStop` |
 | `robot/src/types/Protocol.h` | `MsgType` enum, payload structs, CRC, frame constants |
-| `robot/src/main.cpp` | Pin assignments, BT name |
+| `robot/src/main.cpp` | Pin assignments, UDP port |
 
 ## Step-by-step
 
@@ -28,33 +28,40 @@ On boot, the firmware prints:
 ```
 If you see only garbage, the baud rate is wrong or the port is mismatched.
 
-### 2. Confirm Bluetooth connection
-After `begin()` the `_btTask` polls `_bt.available()`. The computer connects
-via `SerialTransport` or `RFCOMMTransport`. Add a temporary `Serial.println`
-in `RobotComm.cpp:_btTask` to log when `_bt.available() > 0` for the first time.
+### 2. Confirm WiFi/UDP connection
+After `begin()`, the serial monitor shows:
+```
+[ROBOT] WiFi IP: 192.168.1.42
+[ROBOT] UDP listening on port 5005
+```
+If WiFi never connects (dots indefinitely), check `robot/src/credentials.h`
+SSID/PASS (the file is gitignored; copy from `credentials.example.h` and reflash).
+
+Confirm `PHASE_CONFIGS[2]` (or `[3]`) in `computer/main.py` has the correct IP:
+```python
+robot_port = "192.168.1.42:5005",
+robot_transport = "udp",
+```
 
 On the computer side check that `RobotSender.start()` logs `[ROBOT] Sender started`
 and that no `Connect failed` retries appear.
 
-### 3. Diagnose first-connect failure / immediate emergency stop
-If the robot stops within 5 s of BT connecting with no other activity, the
-first-connect resync failure is the likely cause. At connect time the ESP32 SPP
-stack flushes negotiation bytes into the `BluetoothSerial` RX FIFO (default
-512 B). If the FIFO overflows, surviving garbage bytes reach the state machine
-and leave it in `WAIT_START_2`. The first real frame's `0xCA` start byte then
-gets dropped — `_last_rx_ms` is never set — and the watchdog fires.
+### 3. Diagnose first-packet failure / immediate emergency stop
+UDP is connectionless — the robot learns the computer's address from the first
+received datagram. `_client_port == 0` until the first packet arrives, so
+`_sendAck` and `_sendHeartbeat` are silently dropped before that.
 
-Fix (applied in firmware): `_bt.setRxBufferSize(4096)` in `begin()` and the
-re-arm logic in `WAIT_START_2` / `WAIT_END_1`. See `DIAGNOSIS.md` for the full
-root-cause chain and simulation results.
+The watchdog fires `emergencyStop()` after `WATCHDOG_TIMEOUT_MS = 5000 ms`
+with no valid CONTROL_REF or HEARTBEAT. If the robot stops within 5 s and the
+computer is sending, the frame is likely failing CRC or the UDP packet is not
+arriving.
 
 To confirm: add this log line at the top of `_feedByte`:
 ```cpp
 Serial.printf("[RX] state=%d byte=%02x\n", (int)_rx.state, b);
 ```
-On first connect you should see the state machine progress through `WAIT_START_1
-→ WAIT_START_2 → READ_HEADER → … → WAIT_END_2` without stalling in
-`WAIT_START_2`.
+You should see the state machine progress through `WAIT_START_1 → WAIT_START_2
+→ READ_HEADER → … → WAIT_END_2` without stalling in `WAIT_START_2`.
 
 ### 4. Diagnose watchdog emergency stops
 The watchdog fires `WheelController::emergencyStop()` after `WATCHDOG_TIMEOUT_MS = 5000 ms`
@@ -64,7 +71,7 @@ Causes:
 - Computer is not sending CONTROL_REF (keyboard not pressed in Phase 1/2, or
   vision pipeline not running in Phase 3).
 - CRC errors on every received frame — the watchdog only resets on `crc_ok`.
-- BT link has too much latency.
+- UDP packet loss or network congestion.
 - First-connect resync failure (see §3 above).
 
 Check: add `Serial.println("[WATCH] reset");` inside `_watchdogTask` when
@@ -105,8 +112,8 @@ writes to `ledcWrite` / `digitalWrite`).
   16 bytes, increase this constant or the firmware will silently drop frames.
 - The watchdog task (`_watchdogTask`) resets `_last_rx_ms` only when a frame
   passes CRC. Frames with bad CRC do NOT reset the watchdog.
-- `_tx_mutex` (SemaphoreHandle_t) guards all BT writes. Never call `_bt.write`
-  outside `_btTask` without taking this mutex.
+- `_tx_mutex` (SemaphoreHandle_t) guards all UDP sends (`_udpSend`). Never
+  call `_udp.beginPacket`/`write`/`endPacket` outside `_udpSend`.
 
 ## Verification
 ```bash
