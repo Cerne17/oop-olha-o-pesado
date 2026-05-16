@@ -39,7 +39,7 @@ private:
     size_t  _buildFrame(Protocol::MsgType type,
                         const uint8_t* payload, size_t payload_len,
                         uint8_t* out, size_t out_size);
-    void    _sendAck(uint16_t acked_seq, uint8_t status);
+    void    _sendAck(uint16_t acked_seq, Protocol::AckStatus status);
     void    _sendHeartbeat();
     void    _udpSend(const uint8_t* data, size_t len);
 
@@ -52,15 +52,21 @@ private:
     SemaphoreHandle_t _tx_mutex;
     uint16_t          _tx_seq { 0 };
 
-    // Watchdog timestamp (set by _btTask, read by _watchdogTask)
+    // Last time a CRC-valid frame was received (ms since boot).
+    // Written by _udpTask, read by _watchdogTask. Zero = no frame yet.
     volatile uint32_t _last_rx_ms { 0 };
 
-    // Frame decoder state machine
+    // Frame decoder state machine — advances byte-by-byte through:
+    //   [START_1][START_2][header x7][payload x N][CRC_LO][CRC_HI][END_1][END_2]
     enum class RxState : uint8_t {
-        WAIT_START_1, WAIT_START_2,
-        READ_HEADER, READ_PAYLOAD,
-        READ_CRC_LO, READ_CRC_HI,
-        WAIT_END_1,  WAIT_END_2,
+        WAIT_START_1,  // waiting for 0xCA
+        WAIT_START_2,  // got 0xCA, waiting for 0xFE
+        READ_HEADER,   // accumulating 7 header bytes (type + seq LE + len LE)
+        READ_PAYLOAD,  // accumulating payload_len bytes
+        READ_CRC_LO,   // low byte of received CRC16
+        READ_CRC_HI,   // high byte of received CRC16
+        WAIT_END_1,    // waiting for 0xED
+        WAIT_END_2,    // waiting for second 0xED — dispatches on match
     };
 
     struct RxCtx {

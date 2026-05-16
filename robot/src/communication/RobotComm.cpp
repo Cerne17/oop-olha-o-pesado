@@ -35,6 +35,8 @@ void RobotComm::begin() {
 
 void RobotComm::_udpTask(void* arg) {
     auto* self = static_cast<RobotComm*>(arg);
+    // Max frame size is OVERHEAD(13) + MAX_PAYLOAD(16) = 29 bytes.
+    // 256 gives comfortable headroom for any unexpected extra bytes.
     uint8_t  buf[256];
     uint32_t last_hb_ms = 0;
 
@@ -195,24 +197,23 @@ void RobotComm::_feedByte(uint8_t b) {
 }
 
 void RobotComm::_dispatchFrame() {
-    // Verify CRC
-    uint8_t hdr_for_crc[7];
-    hdr_for_crc[0] = _rx.msg_type;
-    hdr_for_crc[1] = (uint8_t)(_rx.seq_num);
-    hdr_for_crc[2] = (uint8_t)(_rx.seq_num >> 8);
-    hdr_for_crc[3] = (uint8_t)(_rx.payload_len);
-    hdr_for_crc[4] = (uint8_t)(_rx.payload_len >> 8);
-    hdr_for_crc[5] = (uint8_t)(_rx.payload_len >> 16);
-    hdr_for_crc[6] = (uint8_t)(_rx.payload_len >> 24);
-
-    // Recompute over full header+payload
+    // Re-serialize the parsed header fields back into raw bytes so the CRC
+    // can be computed over the same byte sequence the sender used. We cannot
+    // use the original wire bytes directly because _feedByte() accumulated
+    // them into hdr_buf and they are no longer contiguous with the payload.
     uint8_t crc_input[7 + MAX_PAYLOAD];
-    memcpy(crc_input, hdr_for_crc, 7);
+    crc_input[0] = _rx.msg_type;
+    crc_input[1] = (uint8_t)(_rx.seq_num);
+    crc_input[2] = (uint8_t)(_rx.seq_num >> 8);          // little-endian
+    crc_input[3] = (uint8_t)(_rx.payload_len);
+    crc_input[4] = (uint8_t)(_rx.payload_len >> 8);       // little-endian
+    crc_input[5] = (uint8_t)(_rx.payload_len >> 16);
+    crc_input[6] = (uint8_t)(_rx.payload_len >> 24);
     memcpy(crc_input + 7, _payload_buf, _rx.payload_len);
-    uint16_t computed_crc = Protocol::crc16(crc_input, 7 + _rx.payload_len);
 
+    uint16_t computed_crc = Protocol::crc16(crc_input, 7 + _rx.payload_len);
     if (computed_crc != _rx.crc_rx) {
-        _sendAck(_rx.seq_num, 1);  // CRC_ERROR
+        _sendAck(_rx.seq_num, Protocol::AckStatus::CRC_ERROR);
         return;
     }
 
@@ -225,7 +226,7 @@ void RobotComm::_dispatchFrame() {
             Protocol::ControlRefPayload ref;
             memcpy(&ref, _payload_buf, sizeof(ref));
             _wheel.setRef(ref);
-            _sendAck(_rx.seq_num, 0);  // OK
+            _sendAck(_rx.seq_num, Protocol::AckStatus::OK);
         }
         break;
 
@@ -237,7 +238,7 @@ void RobotComm::_dispatchFrame() {
         break;  // robot doesn't act on incoming ACKs
 
     default:
-        _sendAck(_rx.seq_num, 2);  // UNKNOWN_TYPE
+        _sendAck(_rx.seq_num, Protocol::AckStatus::UNKNOWN_TYPE);
         break;
     }
 }
@@ -261,9 +262,10 @@ size_t RobotComm::_buildFrame(Protocol::MsgType type,
     // CRC input region starts here
     uint8_t* crc_start = p;
 
+    // Header: type(1) + seq(2 LE) + payload_len(4 LE)
     *p++ = static_cast<uint8_t>(type);
-    *p++ = (uint8_t)(_tx_seq);
-    *p++ = (uint8_t)(_tx_seq >> 8);
+    *p++ = (uint8_t)(_tx_seq);         // seq low byte
+    *p++ = (uint8_t)(_tx_seq >> 8);    // seq high byte
     *p++ = (uint8_t)(payload_len);
     *p++ = (uint8_t)(payload_len >> 8);
     *p++ = (uint8_t)(payload_len >> 16);
@@ -288,7 +290,7 @@ size_t RobotComm::_buildFrame(Protocol::MsgType type,
     return total;
 }
 
-void RobotComm::_sendAck(uint16_t acked_seq, uint8_t status) {
+void RobotComm::_sendAck(uint16_t acked_seq, Protocol::AckStatus status) {
     Protocol::AckPayload ack { acked_seq, status };
     uint8_t buf[Protocol::OVERHEAD + sizeof(ack)];
     size_t len = _buildFrame(Protocol::MsgType::ACK,

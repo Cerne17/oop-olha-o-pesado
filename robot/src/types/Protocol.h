@@ -63,10 +63,17 @@ struct ControlRefPayload {
     float speed_ref;  // [-1.0, 1.0]
 } __attribute__((packed));
 
+// ACK status codes — carried in AckPayload.status
+enum class AckStatus : uint8_t {
+    OK           = 0,
+    CRC_ERROR    = 1,
+    UNKNOWN_TYPE = 2,
+};
+
 // ACK
 struct AckPayload {
-    uint16_t acked_seq;  // sequence number being acknowledged
-    uint8_t  status;     // 0=OK  1=CRC_ERROR  2=UNKNOWN_TYPE  3=INCOMPLETE
+    uint16_t  acked_seq;  // sequence number being acknowledged
+    AckStatus status;
 } __attribute__((packed));
 
 // ---------------------------------------------------------------------------
