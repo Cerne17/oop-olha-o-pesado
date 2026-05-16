@@ -67,7 +67,7 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
 # --------------------------------------------------------------------------- #
 
 def _make_transport(kind: str, port: str):
-    from computer.communication.transport import SerialTransport, RFCOMMTransport, TCPTransport
+    from computer.communication.transport import SerialTransport, RFCOMMTransport, TCPTransport, UDPTransport
     if kind == "serial":
         return SerialTransport(port)
     if kind == "rfcomm":
@@ -75,6 +75,9 @@ def _make_transport(kind: str, port: str):
     if kind == "tcp":
         host, port_str = port.rsplit(":", 1)
         return TCPTransport(host, int(port_str))
+    if kind == "udp":
+        host, port_str = port.rsplit(":", 1)
+        return UDPTransport(host, int(port_str))
     raise ValueError(f"Unknown transport kind: {kind!r}")
 
 
