@@ -48,7 +48,7 @@ depends on the chip on your specific board.
 
 **macOS**: drivers may already be included. Check with:
 ```bash
-ls /dev/cu.usbserial* /dev/cu.SLAB_USBtoUART* 2>/dev/null
+find /dev -maxdepth 1 \( -name "cu.usbserial*" -o -name "cu.SLAB_USBtoUART*" \) 2>/dev/null
 ```
 
 **Linux**: add your user to the `dialout` group, then log out and back in:

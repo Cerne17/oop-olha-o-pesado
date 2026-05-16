@@ -82,7 +82,7 @@ info "Starting phase ${PHASE}: ${DESC}"
 
 if [[ "$PHASE" == "1" ]]; then
     info "Tip: start the robot emulator first in another terminal:"
-    info "     python emulator/src/main.py --port 5001"
+    info "     python3 emulator/src/main.py --port 5001"
     echo ""
 fi
 
@@ -98,4 +98,4 @@ fi
 # Launch                                                                       #
 # --------------------------------------------------------------------------- #
 
-exec python -m computer.main --phase "$PHASE"
+exec python3 -m computer.main --phase "$PHASE"
