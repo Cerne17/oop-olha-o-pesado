@@ -3,6 +3,7 @@ computer.communication.transport — concrete Transport implementations.
 
 SerialTransport  : pyserial — works on macOS after pairing via System Settings
 RFCOMMTransport  : Linux AF_BLUETOOTH RFCOMM socket — no system pairing needed
+TCPTransport     : TCP client — emulator (loopback) or any TCP-reachable device
 """
 
 from __future__ import annotations
@@ -122,26 +123,41 @@ class RFCOMMTransport(Transport):
 class TCPTransport(Transport):
     """
     TCP client transport. Connects to a server at (host, port).
-    Intended for Phase 1 testing where the robot emulator acts as the TCP server.
+
+    Works for any TCP-reachable target: the Phase 1 emulator (loopback) or
+    a physical ESP32 running a WiFiServer sketch.  Pass connect_timeout > 0
+    when connecting over WiFi; keepalive is always enabled to detect dropped
+    links within ~15 s without relying solely on the application heartbeat.
     """
 
-    def __init__(self, host: str, port: int) -> None:
-        self._host    = host
-        self._port    = port
+    def __init__(self, host: str, port: int, connect_timeout: float = 5.0) -> None:
+        self._host            = host
+        self._port            = port
+        self._connect_timeout = connect_timeout
         self._sock: Optional[socket.socket] = None
-        self._tx_lock = threading.Lock()
+        self._tx_lock         = threading.Lock()
 
     def connect(self) -> None:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(self._connect_timeout)
         try:
             sock.connect((self._host, self._port))
-            sock.setblocking(False)
-            self._sock = sock
         except OSError as exc:
             sock.close()
             raise ConnectionError(
                 f"TCPTransport: cannot connect to {self._host}:{self._port}: {exc}"
             ) from exc
+
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE,  5)
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 3)
+        if hasattr(socket, "TCP_KEEPCNT"):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT,   3)
+
+        sock.setblocking(False)
+        self._sock = sock
 
     def disconnect(self) -> None:
         if self._sock:
