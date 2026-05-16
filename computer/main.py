@@ -49,13 +49,13 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
         cam_port        = None,
     ),
     2: PhaseConfig(
-        robot_port = "/dev/cu.RobotESP32-SerialPort",  # macOS BT serial
+        robot_port = "/dev/cu.RobotESP32",  # macOS BT serial
         # robot_port = "/dev/rfcomm0",                 # Linux RFCOMM
         cam_port   = None,
     ),
     3: PhaseConfig(
-        robot_port = "/dev/cu.RobotESP32-SerialPort",
-        cam_port   = "/dev/cu.RobotCAM-SerialPort",
+        robot_port = "/dev/cu.RobotESP32",
+        cam_port   = "/dev/cu.RobotCAM",
         # robot_port = "/dev/rfcomm0",                 # Linux RFCOMM
         # cam_port   = "/dev/rfcomm1",
     ),
