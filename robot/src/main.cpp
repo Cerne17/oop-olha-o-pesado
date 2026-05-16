@@ -7,11 +7,11 @@
 // ---------------------------------------------------------------------------
 static constexpr uint16_t UDP_PORT = 5005;
 
-// Left wheel  — ENA=GPIO14, IN1=GPIO12, IN2=GPIO13
-static constexpr WheelPins LEFT_WHEEL  = { .en = 14, .dir = 12, .esq = 13 };
+// Left wheel  — ENA=GPIO14, IN1=GPIO12 (clockwise), IN2=GPIO13 (counter-clockwise)
+static constexpr WheelPins LEFT_WHEEL  = { .en = 14, .right = 12, .left = 13 };
 
-// Right wheel — ENB=GPIO15, IN3=GPIO2,  IN4=GPIO4
-static constexpr WheelPins RIGHT_WHEEL = { .en = 15, .dir =  2, .esq =  4 };
+// Right wheel — ENB=GPIO15, IN3=GPIO2  (clockwise), IN4=GPIO4  (counter-clockwise)
+static constexpr WheelPins RIGHT_WHEEL = { .en = 15, .right =  2, .left =  4 };
 // ---------------------------------------------------------------------------
 
 static WheelController wheels(LEFT_WHEEL, RIGHT_WHEEL);

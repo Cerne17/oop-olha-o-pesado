@@ -76,9 +76,13 @@ struct AckPayload {
 inline uint16_t crc16(const uint8_t* data, size_t len) {
     uint16_t crc = 0x0000;
     for (size_t i = 0; i < len; ++i) {
+        // Feed the next byte into the high byte of the CRC register.
         crc ^= static_cast<uint16_t>(data[i]) << 8;
-        for (int j = 0; j < 8; ++j)
+        for (int j = 0; j < 8; ++j) {
+            // If the leading bit is 1, shift left and XOR with the
+            // XModem polynomial (0x1021). Otherwise just shift left.
             crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : (crc << 1);
+        }
     }
     return crc;
 }

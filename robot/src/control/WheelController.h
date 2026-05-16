@@ -70,6 +70,9 @@ private:
     WheelSpeeds _computeTargets(float angle_deg, float speed_ref) const;
     void        _driveMotor(const WheelPins& pins, uint8_t channel, float power);
 
+    // Advances `current` toward `target` by at most MAX_DELTA_PER_TICK.
+    static float _slew(float current, float target);
+
     static float _clamp(float v, float lo, float hi) {
         return v < lo ? lo : (v > hi ? hi : v);
     }
@@ -86,7 +89,7 @@ private:
     static constexpr uint8_t  PWM_RES_BITS = 8;      // 0–255
 
     // -------------------------------------------------------------------------
-    // State — reference (written by BT task, read by control task)
+    // State — reference (written by UDP task, read by control task)
     // -------------------------------------------------------------------------
     SemaphoreHandle_t          _ref_mutex;
     Protocol::ControlRefPayload _ref { 0.0f, 0.0f };  // safe initial state: stopped
