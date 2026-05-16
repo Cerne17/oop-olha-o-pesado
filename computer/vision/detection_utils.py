@@ -98,7 +98,9 @@ def detect_persons(model, img):
                 "l_shoulder": kp[5],
                 "r_shoulder": kp[6],
                 "l_wrist": kp[9],
-                "r_wrist": kp[10]
+                "r_wrist": kp[10],
+                "l_hip": kp[11],
+                "r_hip": kp[12]
             }
             persons_data.append(person_info)
             
