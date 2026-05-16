@@ -64,16 +64,23 @@ pio run --target upload
 pio device monitor      # optional: watch serial output
 ```
 
-### 2. Pair Bluetooth
+### 2. Set WiFi credentials and find the robot IP
 
-- **macOS**: System Settings → Bluetooth → pair `RobotESP32`
-- **Linux**: `bluetoothctl` → `pair <MAC>` → `trust <MAC>` → `connect <MAC>`
+```bash
+cp robot/src/credentials.example.h robot/src/credentials.h
+# edit credentials.h with your SSID and password, then reflash
+```
 
-After pairing the device appears as a serial port:
-- macOS: `/dev/cu.RobotESP32-SerialPort`
-- Linux: `/dev/rfcomm0` (after `sudo rfcomm bind 0 <MAC>`)
+After flashing, the serial monitor prints the IP the DHCP server assigned:
+```
+[ROBOT] WiFi IP: 192.168.1.42
+[ROBOT] UDP listening on port 5005
+```
 
-Edit `PHASE_CONFIGS[2]` in [computer/main.py](computer/main.py) if your port differs.
+Update `PHASE_CONFIGS[2]` in [computer/main.py](computer/main.py) with that IP:
+```python
+robot_port = "192.168.1.42:5005"
+```
 
 ### 3. Run the computer
 
@@ -105,19 +112,18 @@ pio run --target upload
 > and a GPIO0–GND jumper to enter flash mode. See [FIRMWARE.md §3–5](FIRMWARE.md)
 > for the full wiring diagram and step-by-step procedure.
 
-### 2. Pair both Bluetooth devices
+### 2. Connect robot via WiFi; pair CAM via Bluetooth
 
-Repeat the pairing steps from Phase 2 for both `RobotESP32` and `RobotCAM`.
+**Robot (UDP/WiFi):** follow the same steps as Phase 2 — credentials, flash,
+read the IP from the serial monitor, update `PHASE_CONFIGS[3].robot_port`.
 
-Update the port constants in `PHASE_CONFIGS[3]` inside [computer/main.py](computer/main.py):
+**CAM (Bluetooth):**
+- **macOS**: System Settings → Bluetooth → pair `RobotCAM` → device appears
+  as `/dev/cu.RobotCAM-SerialPort`.
+- **Linux**: `bluetoothctl` → `pair <MAC>` → `trust <MAC>` → `quit`, then
+  `sudo rfcomm bind 1 <MAC>`.
 
-```python
-3: PhaseConfig(
-    robot_port = "/dev/cu.RobotESP32-SerialPort",
-    cam_port   = "/dev/cu.RobotCAM-SerialPort",
-    ...
-)
-```
+Update `PHASE_CONFIGS[3].cam_port` in [computer/main.py](computer/main.py) if your port differs.
 
 ### 3. Run the computer
 
@@ -145,8 +151,8 @@ Arguments:
 
 Phase descriptions:
   1   Manual control / TCP loopback to robot emulator
-  2   Manual control / physical robot over Bluetooth
-  3   Autonomous vision / physical robot + CAM over Bluetooth
+  2   Manual control / physical robot over UDP+WiFi
+  3   Autonomous vision / physical robot UDP+WiFi + CAM over Bluetooth
 ```
 
 What the script does:
@@ -207,10 +213,15 @@ Invoke any skill with `/skill-name` in the Claude Code REPL, or run `/skills` to
 - Make sure the emulator is running before or shortly after the computer starts — it retries every 3 s.
 - Check the port matches: emulator default is `5001`, computer default is `localhost:5001`.
 
-**Bluetooth device not found (Phase 2/3)**
-- Confirm the ESP32 is powered and the serial monitor shows `=== Ready ===`.
-- On macOS, the `/dev/cu.*` entry only appears after the device is paired *and* the SPP profile is active (the ESP32 must be running).
-- On Linux, run `sudo rfcomm bind 0 <MAC>` before launching the computer.
+**Robot unreachable over UDP (Phase 2/3)**
+- Confirm the robot serial monitor shows `[ROBOT] WiFi IP: ...` and `UDP listening on port 5005`.
+- Ensure the computer and robot are on the same WiFi network.
+- Check `PHASE_CONFIGS[2].robot_port` matches the printed IP.
+
+**CAM Bluetooth device not found (Phase 3)**
+- Confirm the CAM is powered and the serial monitor shows `=== Ready ===`.
+- On macOS, the `/dev/cu.*` entry only appears after the device is paired and the SPP profile is active.
+- On Linux, run `sudo rfcomm bind 1 <MAC>` before launching the computer.
 
 **ESP32-CAM upload fails**
 - Hold GPIO0 to ground during power-on to force the board into bootloader mode.

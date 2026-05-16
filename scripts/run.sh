@@ -4,8 +4,8 @@
 # Usage:
 #   bash scripts/run.sh <phase>
 #   bash scripts/run.sh 1     # manual / TCP emulator
-#   bash scripts/run.sh 2     # manual / physical robot BT
-#   bash scripts/run.sh 3     # autonomous / physical robot + CAM BT
+#   bash scripts/run.sh 2     # manual / physical robot UDP+WiFi
+#   bash scripts/run.sh 3     # autonomous / physical robot UDP+WiFi + CAM BT
 #
 # Must be run from the repository root.
 # Activates .venv automatically if it exists.
@@ -70,8 +70,8 @@ fi
 
 case "$PHASE" in
     1) DESC="manual control / TCP loopback to robot emulator" ;;
-    2) DESC="manual control / physical robot over Bluetooth" ;;
-    3) DESC="autonomous vision / physical robot + CAM over Bluetooth" ;;
+    2) DESC="manual control / physical robot over UDP+WiFi" ;;
+    3) DESC="autonomous vision / physical robot UDP+WiFi + CAM over Bluetooth" ;;
 esac
 
 info "Starting phase ${PHASE}: ${DESC}"
@@ -87,11 +87,12 @@ if [[ "$PHASE" == "1" ]]; then
 fi
 
 if [[ "$PHASE" == "2" || "$PHASE" == "3" ]]; then
-    warn "Make sure the robot ESP32 is paired and powered on before continuing."
+    warn "Make sure the robot ESP32 is powered on and connected to WiFi."
+    warn "Check PHASE_CONFIGS[${PHASE}].robot_port in computer/main.py matches the robot IP."
 fi
 
 if [[ "$PHASE" == "3" ]]; then
-    warn "Make sure the CAM ESP32 is also paired and powered on."
+    warn "Make sure the CAM ESP32 is also paired and powered on (Bluetooth)."
 fi
 
 # --------------------------------------------------------------------------- #
