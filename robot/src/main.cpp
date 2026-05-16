@@ -3,9 +3,9 @@
 #include "control/WheelController.h"
 
 // ---------------------------------------------------------------------------
-// CONFIG — adapt pin numbers and Bluetooth name to your wiring
+// CONFIG — adapt pin numbers and UDP listen port to your setup
 // ---------------------------------------------------------------------------
-static const char* BT_NAME = "RobotESP32";
+static constexpr uint16_t UDP_PORT = 5005;
 
 // Left wheel  — ENA=GPIO14, IN1=GPIO12, IN2=GPIO13
 static constexpr WheelPins LEFT_WHEEL  = { .en = 14, .dir = 12, .esq = 13 };
@@ -15,7 +15,7 @@ static constexpr WheelPins RIGHT_WHEEL = { .en = 15, .dir =  2, .esq =  4 };
 // ---------------------------------------------------------------------------
 
 static WheelController wheels(LEFT_WHEEL, RIGHT_WHEEL);
-static RobotComm       robot(wheels, BT_NAME);
+static RobotComm       robot(wheels, UDP_PORT);
 
 void setup() {
     Serial.begin(115200);

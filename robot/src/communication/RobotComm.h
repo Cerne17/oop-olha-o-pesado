@@ -4,7 +4,7 @@
 //
 // Spawns three tasks:
 //
-//   _btTask      (core 1, priority 5) — BT receive loop:
+//   _udpTask     (core 1, priority 5) — UDP receive loop:
 //                  decodes frames, dispatches CONTROL_REF to WheelController,
 //                  sends ACK/HEARTBEAT, resets watchdog timer.
 //
@@ -16,7 +16,8 @@
 // =============================================================================
 
 #include <Arduino.h>
-#include <BluetoothSerial.h>
+#include <WiFi.h>
+#include <WiFiUdp.h>
 #include "../control/WheelController.h"
 #include "../types/Protocol.h"
 
@@ -24,28 +25,30 @@ class RobotComm {
 public:
     static constexpr uint32_t WATCHDOG_TIMEOUT_MS = 5000;  // 5 s
 
-    // bt_name must remain valid for the lifetime of this object.
-    RobotComm(WheelController& wheel,
-              const char*      bt_name = "RobotESP32");
+    RobotComm(WheelController& wheel, uint16_t listen_port = 5005);
 
-    // Initialise BluetoothSerial and start FreeRTOS tasks.
+    // Connect to WiFi and start FreeRTOS tasks.
     void begin();
 
 private:
-    static void _btTask(void* arg);        // core 1, priority 5, stack 4096 B
-    static void _controlTask(void* arg);   // core 1, priority 4, stack 2048 B
-    static void _watchdogTask(void* arg);  // core 1, priority 3, stack 2048 B
+    static void _udpTask(void* arg);        // core 1, priority 5, stack 4096 B
+    static void _controlTask(void* arg);    // core 1, priority 4, stack 2048 B
+    static void _watchdogTask(void* arg);   // core 1, priority 3, stack 2048 B
 
-    // Frame-building helpers
+    // Frame-building and send helpers
     size_t  _buildFrame(Protocol::MsgType type,
                         const uint8_t* payload, size_t payload_len,
                         uint8_t* out, size_t out_size);
     void    _sendAck(uint16_t acked_seq, uint8_t status);
     void    _sendHeartbeat();
+    void    _udpSend(const uint8_t* data, size_t len);
 
     WheelController&  _wheel;
-    BluetoothSerial   _bt;
-    const char*       _bt_name;
+    WiFiUDP           _udp;
+    uint16_t          _listen_port;
+    // Set on first received datagram; used for all ACK/HEARTBEAT replies.
+    IPAddress         _client_ip;
+    uint16_t          _client_port { 0 };
     SemaphoreHandle_t _tx_mutex;
     uint16_t          _tx_seq { 0 };
 

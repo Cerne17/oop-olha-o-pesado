@@ -1,43 +1,57 @@
 #include "RobotComm.h"
+#include "credentials.h"
 #include <string.h>
 
 // =============================================================================
 // RobotComm — implementation
 // =============================================================================
 
-RobotComm::RobotComm(WheelController& wheel, const char* bt_name)
-    : _wheel(wheel), _bt_name(bt_name)
+RobotComm::RobotComm(WheelController& wheel, uint16_t listen_port)
+    : _wheel(wheel), _listen_port(listen_port)
 {
     _tx_mutex = xSemaphoreCreateMutex();
 }
 
 void RobotComm::begin() {
-    // Enlarge the RX FIFO before starting — the default 512 B overflows during
-    // SPP profile negotiation at connect time, corrupting the first frames.
-    // See DIAGNOSIS.md §Bug 2.
-    _bt.setRxBufferSize(4096);
-    _bt.begin(_bt_name);
-    Serial.printf("[ROBOT] Bluetooth started as '%s'\n", _bt_name);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.print("[ROBOT] Connecting to WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.printf("\n[ROBOT] WiFi IP: %s\n", WiFi.localIP().toString().c_str());
 
-    xTaskCreatePinnedToCore(_btTask,       "bt",      4096, this, 5, nullptr, 1);
+    _udp.begin(_listen_port);
+    Serial.printf("[ROBOT] UDP listening on port %u\n", _listen_port);
+
+    xTaskCreatePinnedToCore(_udpTask,      "udp",     4096, this, 5, nullptr, 1);
     xTaskCreatePinnedToCore(_controlTask,  "control", 2048, this, 4, nullptr, 1);
     xTaskCreatePinnedToCore(_watchdogTask, "watchdog",2048, this, 3, nullptr, 1);
 }
 
 // ---------------------------------------------------------------------------
-// BT task — receive + dispatch
+// UDP task — receive + dispatch
 // ---------------------------------------------------------------------------
 
-void RobotComm::_btTask(void* arg) {
+void RobotComm::_udpTask(void* arg) {
     auto* self = static_cast<RobotComm*>(arg);
+    uint8_t  buf[256];
     uint32_t last_hb_ms = 0;
 
     for (;;) {
-        while (self->_bt.available()) {
-            self->_feedByte((uint8_t)self->_bt.read());
+        int pkt_size = self->_udp.parsePacket();
+        if (pkt_size > 0) {
+            // Record sender address so replies go to the right host/port.
+            self->_client_ip   = self->_udp.remoteIP();
+            self->_client_port = self->_udp.remotePort();
+
+            int n = self->_udp.read(buf, sizeof(buf));
+            for (int i = 0; i < n; i++) {
+                self->_feedByte(buf[i]);
+            }
         }
 
-        // Send periodic heartbeat
+        // Send periodic heartbeat so the computer-side watchdog stays alive.
         uint32_t now = millis();
         if (now - last_hb_ms >= 1000) {
             self->_sendHeartbeat();
@@ -281,9 +295,7 @@ void RobotComm::_sendAck(uint16_t acked_seq, uint8_t status) {
                              reinterpret_cast<const uint8_t*>(&ack),
                              sizeof(ack), buf, sizeof(buf));
     if (len == 0) return;
-    xSemaphoreTake(_tx_mutex, portMAX_DELAY);
-    _bt.write(buf, len);
-    xSemaphoreGive(_tx_mutex);
+    _udpSend(buf, len);
 }
 
 void RobotComm::_sendHeartbeat() {
@@ -291,7 +303,15 @@ void RobotComm::_sendHeartbeat() {
     size_t len = _buildFrame(Protocol::MsgType::HEARTBEAT,
                              nullptr, 0, buf, sizeof(buf));
     if (len == 0) return;
+    _udpSend(buf, len);
+}
+
+void RobotComm::_udpSend(const uint8_t* data, size_t len) {
+    // No destination known yet — first datagram from the computer sets _client_port.
+    if (_client_port == 0) return;
     xSemaphoreTake(_tx_mutex, portMAX_DELAY);
-    _bt.write(buf, len);
+    _udp.beginPacket(_client_ip, _client_port);
+    _udp.write(data, len);
+    _udp.endPacket();
     xSemaphoreGive(_tx_mutex);
 }
