@@ -68,8 +68,7 @@ ls /dev/ttyUSB* /dev/ttyACM*
 
 Any generic **ESP32 development board** (`esp32dev` in PlatformIO). The robot
 firmware communicates over **WiFi (UDP)**, so any ESP32 variant with WiFi works —
-including ESP32-S2 and ESP32-C3. The CAM board (Link A) still uses Bluetooth
-Classic SPP and requires a dual-mode ESP32.
+including ESP32-S2 and ESP32-C3.
 
 ### 2.2 Wiring
 
@@ -377,25 +376,27 @@ the robot's IP:
 ),
 ```
 
-### 7.2 Bluetooth pairing (CAM only — Phase 3)
+### 7.2 WiFi setup (CAM)
 
-The ESP32-CAM still streams over Bluetooth. After flashing:
+Same pattern as the robot — credentials file, flash, read the IP:
 
-**macOS**
-1. System Settings → Bluetooth → wait for `RobotCAM` to appear.
-2. Click Connect. Device appears as `/dev/cu.RobotCAM-SerialPort`.
-
-**Linux**
 ```bash
-bluetoothctl
-> scan on
-> pair   AA:BB:CC:DD:EE:FF
-> trust  AA:BB:CC:DD:EE:FF
-> quit
-sudo rfcomm bind 1 AA:BB:CC:DD:EE:FF   # cam → /dev/rfcomm1
+cp cam/src/credentials.example.h cam/src/credentials.h
+# edit with SSID/PASS, then flash
+cd cam && pio run --target upload
 ```
 
-Update `PHASE_CONFIGS[3].cam_port` in `computer/main.py` if your port differs.
+Serial monitor prints the IP on boot:
+```
+[CAM] WiFi IP: 192.168.1.43
+[CAM] UDP listening on port 5006
+```
+
+Update `PHASE_CONFIGS[3].cam_port` in `computer/main.py`:
+```python
+cam_port      = "192.168.1.43:5006",
+cam_transport = "udp",
+```
 
 ---
 
@@ -408,7 +409,8 @@ Update `PHASE_CONFIGS[3].cam_port` in `computer/main.py` if your port differs.
 | Serial monitor shows garbage | Wrong baud rate | Firmware always uses 115200 |
 | `[CAM] FATAL: camera init failed` | Camera ribbon cable loose | Reseat the ribbon; check orientation |
 | Robot WiFi never connects (dots print forever) | Wrong credentials | Check `robot/src/credentials.h` SSID/PASS |
-| Robot WiFi connects but computer can't reach it | Firewall or different subnet | Ensure computer and ESP32 are on same WiFi network; check UDP port 5005 |
+| Robot WiFi connects but computer can't reach it | Firewall or different subnet | Ensure computer and robot are on same WiFi network; check UDP port 5005 |
+| CAM WiFi never connects | Wrong credentials | Check `cam/src/credentials.h` SSID/PASS |
+| CAM WiFi connects but computer can't reach it | Firewall or different subnet | Ensure computer and CAM are on same WiFi network; check UDP port 5006 |
 | `esptool.py: command not found` | PlatformIO not installed | `pip install platformio` |
 | Upload succeeds but device is unresponsive | GPIO0 still tied to GND | Remove GPIO0–GND jumper and press RST |
-| CAM device not detected after pairing (macOS) | SPP profile not active | Ensure CAM is running firmware before pairing |

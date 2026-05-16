@@ -54,9 +54,10 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
         cam_port        = None,
     ),
     3: PhaseConfig(
-        robot_port      = "192.168.1.42:5005",  # ESP32 WiFi IP + listen port
+        robot_port      = "192.168.1.42:5005",  # robot ESP32 WiFi IP + listen port
         robot_transport = "udp",
-        cam_port        = "/dev/cu.RobotCAM",   # CAM still over BT/Serial
+        cam_port        = "192.168.1.43:5006",  # CAM ESP32 WiFi IP + listen port
+        cam_transport   = "udp",
     ),
 }
 
@@ -182,7 +183,7 @@ def _phase_label(phase: int) -> str:
     return {
         1: "manual / TCP emulator",
         2: "manual / physical robot UDP+WiFi",
-        3: "autonomous / physical robot UDP+WiFi + CAM BT",
+        3: "autonomous / physical robot + CAM over UDP+WiFi",
     }[phase]
 
 
@@ -197,7 +198,7 @@ def main() -> None:
         help=(
             "1 = manual / TCP emulator  |  "
             "2 = manual / physical robot UDP+WiFi  |  "
-            "3 = autonomous / physical robot UDP+WiFi + CAM BT"
+            "3 = autonomous / physical robot + CAM over UDP+WiFi"
         ),
     )
     args = parser.parse_args()

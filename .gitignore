@@ -36,3 +36,4 @@ Thumbs.db
 *.task
 # Credentials (never commit; copy credentials.example.h → credentials.h)
 robot/src/credentials.h
+cam/src/credentials.h

@@ -1,4 +1,5 @@
 #include "CamComm.h"
+#include "credentials.h"
 #include <string.h>
 
 // =============================================================================
@@ -25,11 +26,10 @@ constexpr int HREF_GPIO  = 23;
 constexpr int PCLK_GPIO  = 22;
 } // namespace
 
-CamComm::CamComm(float target_fps, const char* bt_name)
-    : _bt_name(bt_name), _target_fps(target_fps)
+CamComm::CamComm(float target_fps, uint16_t listen_port)
+    : _listen_port(listen_port), _target_fps(target_fps)
 {
     _tx_mutex = xSemaphoreCreateMutex();
-    _rx.bytes_read = 0;
 }
 
 void CamComm::begin() {
@@ -38,11 +38,19 @@ void CamComm::begin() {
         while (true) vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    _bt.begin(_bt_name);
-    Serial.printf("[CAM] Bluetooth started as '%s'\n", _bt_name);
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.print("[CAM] Connecting to WiFi");
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.printf("\n[CAM] WiFi IP: %s\n", WiFi.localIP().toString().c_str());
 
-    xTaskCreatePinnedToCore(_cameraTask, "cam",  8192, this, 3, nullptr, 0);
-    xTaskCreatePinnedToCore(_rxTask,     "rx",   4096, this, 4, nullptr, 1);
+    _udp.begin(_listen_port);
+    Serial.printf("[CAM] UDP listening on port %u\n", _listen_port);
+
+    xTaskCreatePinnedToCore(_cameraTask, "cam", 8192, this, 3, nullptr, 0);
+    xTaskCreatePinnedToCore(_rxTask,     "rx",  4096, this, 4, nullptr, 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -54,7 +62,8 @@ void CamComm::_cameraTask(void* arg) {
     const uint32_t interval_ms = (uint32_t)(1000.0f / self->_target_fps);
 
     for (;;) {
-        if (!self->_bt_connected) {
+        if (!self->_client_known) {
+            // No heartbeat received yet — destination unknown, can't send frames.
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
@@ -66,22 +75,22 @@ void CamComm::_cameraTask(void* arg) {
             continue;
         }
 
-        uint32_t total_size    = fb->len;
-        uint16_t total_chunks  = (uint16_t)((total_size + Protocol::IMAGE_CHUNK_DATA_SIZE - 1)
-                                             / Protocol::IMAGE_CHUNK_DATA_SIZE);
+        uint32_t total_size   = fb->len;
+        uint16_t total_chunks = (uint16_t)((total_size + Protocol::IMAGE_CHUNK_DATA_SIZE - 1)
+                                            / Protocol::IMAGE_CHUNK_DATA_SIZE);
 
         for (uint16_t i = 0; i < total_chunks; ++i) {
-            if (!self->_bt_connected) break;
+            if (!self->_client_known) break;
 
-            size_t   offset    = i * Protocol::IMAGE_CHUNK_DATA_SIZE;
-            size_t   chunk_len = total_size - offset;
+            size_t offset    = i * Protocol::IMAGE_CHUNK_DATA_SIZE;
+            size_t chunk_len = total_size - offset;
             if (chunk_len > Protocol::IMAGE_CHUNK_DATA_SIZE)
                 chunk_len = Protocol::IMAGE_CHUNK_DATA_SIZE;
 
             self->_sendChunk(self->_tx_seq++, self->_frame_id,
                              i, total_chunks, total_size,
                              fb->buf + offset, chunk_len);
-            vTaskDelay(0);  // yield
+            vTaskDelay(0);  // yield between chunks
         }
 
         esp_camera_fb_return(fb);
@@ -97,19 +106,28 @@ void CamComm::_cameraTask(void* arg) {
 
 void CamComm::_rxTask(void* arg) {
     auto* self = static_cast<CamComm*>(arg);
+    uint8_t buf[256];
 
     for (;;) {
-        while (self->_bt.available()) {
-            self->_feedByte((uint8_t)self->_bt.read());
+        int pkt_size = self->_udp.parsePacket();
+        if (pkt_size > 0) {
+            // Record sender address so IMAGE_CHUNK frames go to the right host/port.
+            self->_client_ip   = self->_udp.remoteIP();
+            self->_client_port = self->_udp.remotePort();
+
+            int n = self->_udp.read(buf, sizeof(buf));
+            for (int i = 0; i < n; i++) {
+                self->_feedByte(buf[i]);
+            }
         }
 
-        // Heartbeat watchdog
+        // Heartbeat watchdog — pause streaming if computer goes silent.
         if (self->_last_hb_rx_ms > 0 &&
             millis() - self->_last_hb_rx_ms > HEARTBEAT_TIMEOUT_MS)
         {
-            if (self->_bt_connected) {
+            if (self->_client_known) {
                 Serial.println("[CAM] Heartbeat timeout — pausing stream");
-                self->_bt_connected  = false;
+                self->_client_known = false;
             }
         }
 
@@ -140,10 +158,11 @@ void CamComm::_sendChunk(uint16_t seq, uint16_t frame_id,
     *p++ = Protocol::FRAME_START_1;
     *p++ = Protocol::FRAME_START_2;
 
+    // Header: type(1) + seq(2 LE) + payload_len(4 LE)
     uint8_t* crc_start = p;
     *p++ = static_cast<uint8_t>(Protocol::MsgType::IMAGE_CHUNK);
-    *p++ = (uint8_t)(seq);
-    *p++ = (uint8_t)(seq >> 8);
+    *p++ = (uint8_t)(seq);           // seq low byte
+    *p++ = (uint8_t)(seq >> 8);      // seq high byte
     *p++ = (uint8_t)(payload_len);
     *p++ = (uint8_t)(payload_len >> 8);
     *p++ = (uint8_t)(payload_len >> 16);
@@ -158,10 +177,7 @@ void CamComm::_sendChunk(uint16_t seq, uint16_t frame_id,
     *p++ = Protocol::FRAME_END_1;
     *p++ = Protocol::FRAME_END_2;
 
-    xSemaphoreTake(_tx_mutex, portMAX_DELAY);
-    _bt.write(buf, frame_len);
-    xSemaphoreGive(_tx_mutex);
-
+    _udpSend(buf, frame_len);
     delete[] buf;
 }
 
@@ -174,8 +190,8 @@ void CamComm::_sendHeartbeat(uint16_t seq) {
 
     uint8_t* crc_start = p;
     *p++ = static_cast<uint8_t>(Protocol::MsgType::HEARTBEAT);
-    *p++ = (uint8_t)(seq);
-    *p++ = (uint8_t)(seq >> 8);
+    *p++ = (uint8_t)(seq);       // seq low byte
+    *p++ = (uint8_t)(seq >> 8);  // seq high byte
     *p++ = 0; *p++ = 0; *p++ = 0; *p++ = 0;  // payload_len = 0
 
     uint16_t crc = Protocol::crc16(crc_start, 7);
@@ -184,8 +200,16 @@ void CamComm::_sendHeartbeat(uint16_t seq) {
     *p++ = Protocol::FRAME_END_1;
     *p++ = Protocol::FRAME_END_2;
 
+    _udpSend(buf, Protocol::OVERHEAD);
+}
+
+void CamComm::_udpSend(const uint8_t* data, size_t len) {
+    // No destination known yet — first heartbeat from the computer sets _client_port.
+    if (_client_port == 0) return;
     xSemaphoreTake(_tx_mutex, portMAX_DELAY);
-    _bt.write(buf, Protocol::OVERHEAD);
+    _udp.beginPacket(_client_ip, _client_port);
+    _udp.write(data, len);
+    _udp.endPacket();
     xSemaphoreGive(_tx_mutex);
 }
 
@@ -207,32 +231,44 @@ void CamComm::_feedByte(uint8_t b) {
         break;
 
     case RxState::WAIT_START_2:
-        _rx.state      = (b == Protocol::FRAME_START_2)
-                         ? RxState::READ_HEADER : RxState::WAIT_START_1;
         _rx.bytes_read = 0;
+        if (b == Protocol::FRAME_START_2) {
+            _rx.state = RxState::READ_HEADER;
+        } else if (b == Protocol::FRAME_START_1) {
+            // Another 0xCA before 0xFE — re-arm rather than discard.
+            // Dropping it would lose the next frame's opening byte.
+            _rx.state = RxState::WAIT_START_2;
+        } else {
+            _rx.state = RxState::WAIT_START_1;
+        }
         break;
 
     case RxState::READ_HEADER: {
-        uint8_t* hdr = reinterpret_cast<uint8_t*>(&_rx.msg_type);
-        hdr[_rx.bytes_read++] = b;
+        // Accumulate into hdr_buf, then unpack explicitly (avoids struct overlay UB).
+        // Wire layout (little-endian): [msg_type:1][seq:2][payload_len:4]
+        _rx.hdr_buf[_rx.bytes_read++] = b;
         if (_rx.bytes_read == 7) {
-            _rx.seq_num     = (uint16_t)hdr[1] | ((uint16_t)hdr[2] << 8);
-            _rx.payload_len = (uint32_t)hdr[3]        |
-                              ((uint32_t)hdr[4] << 8)  |
-                              ((uint32_t)hdr[5] << 16) |
-                              ((uint32_t)hdr[6] << 24);
-            _rx.msg_type    = hdr[0];
+            _rx.msg_type    = _rx.hdr_buf[0];
+            _rx.seq_num     = (uint16_t)_rx.hdr_buf[1]
+                            | ((uint16_t)_rx.hdr_buf[2] << 8);
+            _rx.payload_len = (uint32_t)_rx.hdr_buf[3]
+                            | ((uint32_t)_rx.hdr_buf[4] << 8)
+                            | ((uint32_t)_rx.hdr_buf[5] << 16)
+                            | ((uint32_t)_rx.hdr_buf[6] << 24);
             _rx.bytes_read  = 0;
-            _rx.state = (_rx.payload_len == 0)
-                        ? RxState::READ_CRC_LO
-                        : (_rx.payload_len <= MAX_PAYLOAD
-                           ? RxState::READ_PAYLOAD
-                           : RxState::WAIT_START_1);
+            if (_rx.payload_len > MAX_PAYLOAD) {
+                _resetRx();
+            } else {
+                _rx.state = (_rx.payload_len > 0)
+                             ? RxState::READ_PAYLOAD
+                             : RxState::READ_CRC_LO;
+            }
         }
         break;
     }
 
     case RxState::READ_PAYLOAD:
+        if (_rx.bytes_read >= MAX_PAYLOAD) { _resetRx(); return; }
         _payload_buf[_rx.bytes_read++] = b;
         if (_rx.bytes_read == _rx.payload_len)
             _rx.state = RxState::READ_CRC_LO;
@@ -249,8 +285,14 @@ void CamComm::_feedByte(uint8_t b) {
         break;
 
     case RxState::WAIT_END_1:
-        _rx.state = (b == Protocol::FRAME_END_1)
-                    ? RxState::WAIT_END_2 : RxState::WAIT_START_1;
+        if (b == Protocol::FRAME_END_1) {
+            _rx.state = RxState::WAIT_END_2;
+        } else {
+            // Unexpected byte — discard frame. Re-arm if byte is a frame start
+            // so the next 0xFE is not lost.
+            _resetRx();
+            if (b == Protocol::FRAME_START_1) _rx.state = RxState::WAIT_START_2;
+        }
         break;
 
     case RxState::WAIT_END_2:
@@ -261,7 +303,7 @@ void CamComm::_feedByte(uint8_t b) {
 }
 
 void CamComm::_dispatchFrame() {
-    // Verify CRC
+    // Re-serialize parsed header fields for CRC verification.
     uint8_t crc_input[7 + MAX_PAYLOAD];
     crc_input[0] = _rx.msg_type;
     crc_input[1] = (uint8_t)(_rx.seq_num);
@@ -273,7 +315,7 @@ void CamComm::_dispatchFrame() {
     memcpy(crc_input + 7, _payload_buf, _rx.payload_len);
 
     uint16_t computed = Protocol::crc16(crc_input, 7 + _rx.payload_len);
-    if (computed != _rx.crc_rx) return;  // drop silently on CAM side
+    if (computed != _rx.crc_rx) return;  // drop silently — CAM doesn't send NACKs
 
     switch (static_cast<Protocol::MsgType>(_rx.msg_type)) {
 
@@ -283,12 +325,12 @@ void CamComm::_dispatchFrame() {
             memcpy(&ack, _payload_buf, sizeof(ack));
             if (ack.status != 0)
                 Serial.printf("[CAM] NACK seq=%u status=%u\n",
-                              ack.acked_seq, ack.status);
+                              ack.acked_seq, (uint8_t)ack.status);
         }
         break;
 
     case Protocol::MsgType::HEARTBEAT:
-        _bt_connected   = true;
+        _client_known   = true;
         _last_hb_rx_ms  = millis();
         _sendHeartbeat(_tx_seq++);
         break;

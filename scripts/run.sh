@@ -92,7 +92,8 @@ if [[ "$PHASE" == "2" || "$PHASE" == "3" ]]; then
 fi
 
 if [[ "$PHASE" == "3" ]]; then
-    warn "Make sure the CAM ESP32 is also paired and powered on (Bluetooth)."
+    warn "Make sure the CAM ESP32 is also powered on and connected to WiFi."
+    warn "Check PHASE_CONFIGS[3].cam_port in computer/main.py matches the CAM IP."
 fi
 
 # --------------------------------------------------------------------------- #

@@ -112,18 +112,23 @@ pio run --target upload
 > and a GPIO0–GND jumper to enter flash mode. See [FIRMWARE.md §3–5](FIRMWARE.md)
 > for the full wiring diagram and step-by-step procedure.
 
-### 2. Connect robot via WiFi; pair CAM via Bluetooth
+### 2. Connect both boards via WiFi
 
-**Robot (UDP/WiFi):** follow the same steps as Phase 2 — credentials, flash,
-read the IP from the serial monitor, update `PHASE_CONFIGS[3].robot_port`.
+**Robot:** follow the same steps as Phase 2 — credentials, flash, read IP,
+update `PHASE_CONFIGS[3].robot_port`.
 
-**CAM (Bluetooth):**
-- **macOS**: System Settings → Bluetooth → pair `RobotCAM` → device appears
-  as `/dev/cu.RobotCAM-SerialPort`.
-- **Linux**: `bluetoothctl` → `pair <MAC>` → `trust <MAC>` → `quit`, then
-  `sudo rfcomm bind 1 <MAC>`.
-
-Update `PHASE_CONFIGS[3].cam_port` in [computer/main.py](computer/main.py) if your port differs.
+**CAM:** same pattern with `cam/src/credentials.h`:
+```bash
+cp cam/src/credentials.example.h cam/src/credentials.h
+# edit with SSID/PASS, then flash
+cd cam && pio run --target upload
+```
+Serial monitor prints the IP:
+```
+[CAM] WiFi IP: 192.168.1.43
+[CAM] UDP listening on port 5006
+```
+Update `PHASE_CONFIGS[3].cam_port` in [computer/main.py](computer/main.py) with that IP.
 
 ### 3. Run the computer
 
@@ -218,10 +223,10 @@ Invoke any skill with `/skill-name` in the Claude Code REPL, or run `/skills` to
 - Ensure the computer and robot are on the same WiFi network.
 - Check `PHASE_CONFIGS[2].robot_port` matches the printed IP.
 
-**CAM Bluetooth device not found (Phase 3)**
-- Confirm the CAM is powered and the serial monitor shows `=== Ready ===`.
-- On macOS, the `/dev/cu.*` entry only appears after the device is paired and the SPP profile is active.
-- On Linux, run `sudo rfcomm bind 1 <MAC>` before launching the computer.
+**CAM unreachable over UDP (Phase 3)**
+- Confirm serial monitor shows `[CAM] WiFi IP: ...` and `UDP listening on port 5006`.
+- Check `PHASE_CONFIGS[3].cam_port` matches the printed IP.
+- Ensure computer and CAM are on the same WiFi network.
 
 **ESP32-CAM upload fails**
 - Hold GPIO0 to ground during power-on to force the board into bootloader mode.
