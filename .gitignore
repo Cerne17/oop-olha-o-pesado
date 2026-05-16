@@ -34,3 +34,5 @@ Thumbs.db
 # Neural Networks
 *.pt
 *.task
+# Credentials (never commit; copy credentials.example.h → credentials.h)
+robot/src/credentials.h
