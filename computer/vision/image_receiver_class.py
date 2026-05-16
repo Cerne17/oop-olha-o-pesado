@@ -1,41 +1,48 @@
 import cv2
+import time
+from computer.types.observers import FrameObservable
+from computer.types.signals import Frame
 
-class ImageReceiver():
+class ImageReceiver(FrameObservable):
     def __init__(self):
-        self.actual_image = None
-        self.actual_image_rgb = None
-        self.image_processer = None
+        # Inicializa a infraestrutura de avisos do FrameObservable
+        super().__init__() 
         self.cap = cv2.VideoCapture(0)
         self.finish = False
-    
-    def SetImageProcesser(self,image_processer):
-        self.image_processer = image_processer
+        self.frame_id_counter = 0
     
     def Run(self):
         while self.cap.isOpened() and not self.finish:
-            success = self.ReceiveImage()
-            if success:
-                self.NotifyNewImageReady()
+            success, img = self.cap.read()
+            if not success:
+                continue
+            
+            img = cv2.resize(img, (640, 480)) # Usada para diminuir gasto computacional
+            img = cv2.flip(img, 1)  # Inverter para efeito de espelho
+            
+            # --- ADAPTAÇÃO PARA A CAIXA PRETA ---
+            # A sua nova ComputerVision espera um 'Frame' contendo o JPEG em bytes
+            # Então nós codificamos a imagem do OpenCV para JPEG aqui:
+            success_encode, buffer = cv2.imencode('.jpg', img)
+            
+            if success_encode:
+                jpeg_bytes = buffer.tobytes()
+                
+                # Monta o pacote oficial
+                frame_oficial = Frame(
+                    frame_id=self.frame_id_counter,
+                    jpeg=jpeg_bytes,
+                    timestamp=time.monotonic()
+                )
+                self.frame_id_counter += 1
+                
+                # Avisa todos os interessados (a sua ComputerVision) que a foto está pronta
+                self._notify_frame(frame_oficial)
+            
+            # Pequeno delay para simular a taxa de quadros (FPS) da câmera Bluetooth real
+            time.sleep(0.05) 
+            
         self.CloseImages()
-    
-    def GetImage(self):
-        return self.actual_image, self.actual_image_rgb
-    
-    def NotifyNewImageReady(self):
-        self.image_processer.NotifyNewImage()
-    
-    def ReceiveImage(self):
-        success, img = self.cap.read()
-        img = cv2.resize(img, (640, 480)) # Usada para diminuir gasto computacional
-
-        if not success:
-            return False
-        
-        img = cv2.flip(img, 1)  # Inverter para efeito de espelho
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        self.actual_image = img
-        self.actual_image_rgb = img_rgb
-        return True
     
     def CloseImages(self):
         if self.cap is not None:
