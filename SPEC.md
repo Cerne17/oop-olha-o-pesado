@@ -428,6 +428,17 @@ Concrete implementations (not in `types/`):
 |-------|----------|-------|
 | `SerialTransport` | `computer/communication/` | pyserial, non-blocking read |
 | `RFCOMMTransport` | `computer/communication/` | Linux AF_BLUETOOTH socket |
+| `TCPTransport` | `computer/communication/` | TCP client; emulator + WiFi ESP32 |
+| `UDPTransport` | `computer/communication/` | UDP datagrams; one frame per datagram; WiFi ESP32 |
+
+**Transport selection** is done via `robot_transport` / `cam_transport` fields in `PhaseConfig` and parsed by `_make_transport()` in `computer/main.py`. The `port` field encodes the address:
+
+| Transport kind | `port` format | Example |
+|---------------|--------------|---------|
+| `"serial"` | device path | `"/dev/cu.RobotESP32"` |
+| `"rfcomm"` | BT MAC address | `"AA:BB:CC:DD:EE:FF"` |
+| `"tcp"` | `"host:port"` | `"127.0.0.1:5001"` |
+| `"udp"` | `"host:port"` | `"192.168.1.42:5005"` |
 
 ---
 
@@ -1186,6 +1197,37 @@ Test smooth motion ramp-up and emergency stop on BT disconnect.
 
 Flash both `robot/` and `cam/`. Edit ports in `computer/main.py`.
 Tune `ColourBlobDetector` HSV ranges for target. Add or replace detectors.
+
+### UDP transport variant (any phase)
+
+`UDPTransport` can replace any serial/BT link when the ESP32 is on WiFi.
+The wire protocol (frame format, CRC, message types) is **identical**; only
+the physical carrier changes. Set `robot_transport = "udp"` and
+`robot_port = "<ESP32_IP>:<PORT>"` in the relevant `PhaseConfig`.
+
+```python
+# computer/main.py — example override for WiFi robot
+2: PhaseConfig(
+    robot_port      = "192.168.1.42:5005",
+    robot_transport = "udp",
+    cam_port        = None,
+),
+```
+
+**Heartbeat requirement with UDP:**  
+UDP has no keepalive. The ESP32 watchdog fires `emergencyStop()` after
+`WATCHDOG_TIMEOUT_MS` (5 s) without a valid frame. `RobotSender` already sends
+a `HEARTBEAT` at 1 Hz when idle — this satisfies the watchdog. Do **not**
+disable heartbeats when using UDP.
+
+**ESP32 firmware requirements for UDP:**  
+The current firmware (`robot/src/communication/RobotComm.cpp`) uses
+`BluetoothSerial`. To receive UDP frames the ESP32 needs:
+1. WiFi connect (`WiFi.begin(ssid, pass)`) in `setup()`.
+2. `WiFiUDP` socket listening on the configured port.
+3. Replace `_bt.available()` / `_bt.read()` / `_bt.write()` with
+   `udp.parsePacket()` / `udp.read()` / `udp.writeTo()` — the frame parsing
+   and watchdog logic are unchanged.
 
 ---
 

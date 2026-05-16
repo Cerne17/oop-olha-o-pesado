@@ -98,6 +98,8 @@ Project skills live in `.claude/skills/` and are auto-discovered by Claude Code.
 - `/add-message-type` — adding a new wire message on one link only
 - `/debug-computer-comm` — frames not arriving, CRC errors, heartbeat timeouts
 - `/implement-transport` — adding a new link type (WebSocket, UDP, …)
+- `/use-udp-transport` — switching Link B to UDP over WiFi (computer config + ESP32 firmware port)
+- `/debug-udp` — UDP-specific issues: no datagrams, CRC errors, watchdog over WiFi
 - `/implement-detector` — writing a new `Detector` subclass
 - `/implement-strategy` — writing a new `ControlStrategy`
 - `/debug-robot-comm` — BT pairing failures, watchdog triggers, wrong wheel behaviour
