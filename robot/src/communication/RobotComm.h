@@ -61,13 +61,15 @@ private:
     };
 
     struct RxCtx {
-        RxState  state     { RxState::WAIT_START_1 };
-        uint8_t  msg_type  { 0 };
-        uint16_t seq_num   { 0 };
+        RxState  state       { RxState::WAIT_START_1 };
+        uint8_t  msg_type    { 0 };
+        uint16_t seq_num     { 0 };
         uint32_t payload_len { 0 };
-        uint16_t crc_rx    { 0 };
-        size_t   bytes_read { 0 };
-        uint8_t* payload_buf { nullptr };
+        uint16_t crc_rx      { 0 };
+        size_t   bytes_read  { 0 };
+        // Staging buffer for the 7-byte wire header (type + seq LE + len LE).
+        // Filled byte-by-byte in READ_HEADER, then unpacked explicitly.
+        uint8_t  hdr_buf[7]  {};
     } _rx;
 
     void _resetRx();

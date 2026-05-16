@@ -9,10 +9,13 @@ RobotComm::RobotComm(WheelController& wheel, const char* bt_name)
     : _wheel(wheel), _bt_name(bt_name)
 {
     _tx_mutex = xSemaphoreCreateMutex();
-    _rx.payload_buf = _payload_buf;
 }
 
 void RobotComm::begin() {
+    // Enlarge the RX FIFO before starting — the default 512 B overflows during
+    // SPP profile negotiation at connect time, corrupting the first frames.
+    // See DIAGNOSIS.md §Bug 2.
+    _bt.setRxBufferSize(4096);
     _bt.begin(_bt_name);
     Serial.printf("[ROBOT] Bluetooth started as '%s'\n", _bt_name);
 
@@ -99,24 +102,34 @@ void RobotComm::_feedByte(uint8_t b) {
         break;
 
     case RxState::WAIT_START_2:
-        _rx.state = (b == Protocol::FRAME_START_2)
-                    ? RxState::READ_HEADER
-                    : RxState::WAIT_START_1;
         _rx.bytes_read = 0;
+        if (b == Protocol::FRAME_START_2) {
+            _rx.state = RxState::READ_HEADER;
+        } else if (b == Protocol::FRAME_START_1) {
+            // Another 0xCA arrived before 0xFE — re-arm rather than discard.
+            // Dropping it (going to WAIT_START_1) would cause the next frame's
+            // opening byte to be lost. See DIAGNOSIS.md §Bug 1.
+            _rx.state = RxState::WAIT_START_2;
+        } else {
+            _rx.state = RxState::WAIT_START_1;
+        }
         break;
 
     case RxState::READ_HEADER: {
-        // Header: type(1) + seq(2) + len(4) = 7 bytes
-        uint8_t* hdr = reinterpret_cast<uint8_t*>(&_rx.msg_type);
-        hdr[_rx.bytes_read++] = b;
+        // Accumulate the 7-byte wire header into hdr_buf, then unpack
+        // explicitly.  Wire layout (little-endian):
+        //   [0]      msg_type  (1 B)
+        //   [1..2]   seq_num   (2 B LE)
+        //   [3..6]   payload_len (4 B LE)
+        _rx.hdr_buf[_rx.bytes_read++] = b;
         if (_rx.bytes_read == 7) {
-            // Unpack little-endian seq and len from raw bytes
-            _rx.seq_num     = (uint16_t)hdr[1] | ((uint16_t)hdr[2] << 8);
-            _rx.payload_len = (uint32_t)hdr[3]        |
-                              ((uint32_t)hdr[4] << 8)  |
-                              ((uint32_t)hdr[5] << 16) |
-                              ((uint32_t)hdr[6] << 24);
-            _rx.msg_type    = hdr[0];
+            _rx.msg_type    = _rx.hdr_buf[0];
+            _rx.seq_num     = (uint16_t)_rx.hdr_buf[1]
+                            | ((uint16_t)_rx.hdr_buf[2] << 8);
+            _rx.payload_len = (uint32_t)_rx.hdr_buf[3]
+                            | ((uint32_t)_rx.hdr_buf[4] << 8)
+                            | ((uint32_t)_rx.hdr_buf[5] << 16)
+                            | ((uint32_t)_rx.hdr_buf[6] << 24);
             _rx.bytes_read  = 0;
             if (_rx.payload_len > MAX_PAYLOAD) {
                 _resetRx();
@@ -130,7 +143,10 @@ void RobotComm::_feedByte(uint8_t b) {
     }
 
     case RxState::READ_PAYLOAD:
-        _rx.payload_buf[_rx.bytes_read++] = b;
+        // Defensive bound — payload_len is validated in READ_HEADER, but a
+        // second check here ensures a logic error can never smash adjacent memory.
+        if (_rx.bytes_read >= MAX_PAYLOAD) { _resetRx(); return; }
+        _payload_buf[_rx.bytes_read++] = b;
         if (_rx.bytes_read == _rx.payload_len)
             _rx.state = RxState::READ_CRC_LO;
         break;
@@ -146,9 +162,14 @@ void RobotComm::_feedByte(uint8_t b) {
         break;
 
     case RxState::WAIT_END_1:
-        _rx.state = (b == Protocol::FRAME_END_1)
-                    ? RxState::WAIT_END_2
-                    : RxState::WAIT_START_1;
+        if (b == Protocol::FRAME_END_1) {
+            _rx.state = RxState::WAIT_END_2;
+        } else {
+            // Unexpected byte — discard this frame. Re-arm if the byte is a
+            // frame start so the next 0xFE is not lost. See DIAGNOSIS.md §Bug 3.
+            _resetRx();
+            if (b == Protocol::FRAME_START_1) _rx.state = RxState::WAIT_START_2;
+        }
         break;
 
     case RxState::WAIT_END_2:
@@ -173,7 +194,7 @@ void RobotComm::_dispatchFrame() {
     // Recompute over full header+payload
     uint8_t crc_input[7 + MAX_PAYLOAD];
     memcpy(crc_input, hdr_for_crc, 7);
-    memcpy(crc_input + 7, _rx.payload_buf, _rx.payload_len);
+    memcpy(crc_input + 7, _payload_buf, _rx.payload_len);
     uint16_t computed_crc = Protocol::crc16(crc_input, 7 + _rx.payload_len);
 
     if (computed_crc != _rx.crc_rx) {
@@ -188,7 +209,7 @@ void RobotComm::_dispatchFrame() {
     case Protocol::MsgType::CONTROL_REF:
         if (_rx.payload_len == sizeof(Protocol::ControlRefPayload)) {
             Protocol::ControlRefPayload ref;
-            memcpy(&ref, _rx.payload_buf, sizeof(ref));
+            memcpy(&ref, _payload_buf, sizeof(ref));
             _wheel.setRef(ref);
             _sendAck(_rx.seq_num, 0);  // OK
         }
@@ -234,7 +255,11 @@ size_t RobotComm::_buildFrame(Protocol::MsgType type,
     *p++ = (uint8_t)(payload_len >> 16);
     *p++ = (uint8_t)(payload_len >> 24);
 
-    memcpy(p, payload, payload_len);
+    // Guard against null: memcpy(dst, nullptr, 0) is undefined behaviour even
+    // when n == 0.  HEARTBEAT frames have no payload and pass nullptr here.
+    if (payload && payload_len > 0) {
+        memcpy(p, payload, payload_len);
+    }
     p += payload_len;
 
     uint16_t crc = Protocol::crc16(crc_start, 7 + payload_len);
