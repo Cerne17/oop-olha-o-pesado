@@ -130,7 +130,16 @@ Serial monitor prints the IP:
 ```
 Update `PHASE_CONFIGS[3].cam_port` in [computer/main.py](computer/main.py) with that IP.
 
-### 3. Run the computer
+### 3. Download the MediaPipe hand landmark model
+
+The vision pipeline requires `hand_landmarker.task` in the working directory you run the command from.
+Download it from the [MediaPipe Models page](https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker#models) and place it at the repo root:
+
+```bash
+wget -q https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task
+```
+
+### 4. Run the computer
 
 ```bash
 python -m computer.main --phase 3
@@ -138,7 +147,7 @@ python -m computer.main --phase 3
 bash scripts/run.sh 3
 ```
 
-The vision pipeline is a stub until implemented — see [computer/vision/](computer/vision/) and [SPEC.md §7](SPEC.md).
+Press **q** in the vision window or **Ctrl+C** in the terminal to stop.
 
 ---
 

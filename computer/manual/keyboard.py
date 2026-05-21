@@ -16,8 +16,7 @@ from pynput import keyboard
 from pynput.keyboard import Key
 
 from computer.types.observers import ControlObservable
-from computer.types.signals   import ControlSignal
-
+from computer.types.signals import ControlSignal
 
 class KeyboardController(ControlObservable):
     """
@@ -34,7 +33,7 @@ class KeyboardController(ControlObservable):
             on_press=self._on_press,
             on_release=self._on_release,
         )
-        self._stop_event   = threading.Event()
+        self._stop_event = threading.Event()
         self._pub_thread: Optional[threading.Thread] = None
 
     # -------------------------------------------------------------------------
@@ -75,19 +74,19 @@ class KeyboardController(ControlObservable):
 
     def _get_signal(self) -> ControlSignal:
         pressed = self._pressed.copy()
-        up    = Key.up    in pressed
-        down  = Key.down  in pressed
+        up = Key.up in pressed
+        down = Key.down in pressed
         right = Key.right in pressed
-        left  = Key.left  in pressed
+        left = Key.left in pressed
 
-        dy = (-1 if up    else 0) + (1 if down  else 0)
-        dx = ( 1 if right else 0) + (-1 if left else 0)
+        dy = (-1 if up else 0) + (1 if down else 0)
+        dx = (1 if right else 0) + (-1 if left else 0)
 
         if dy == 0 and dx == 0:
-            return ControlSignal.stopped()
+            return ControlSignal.waiting()
 
         angle_deg = math.degrees(math.atan2(dx, -dy))
-        return ControlSignal(angle_deg=angle_deg, speed_ref=1.0)
+        return ControlSignal.following(angle=angle_deg, speed=1.0)
 
     # -------------------------------------------------------------------------
     # Publish loop

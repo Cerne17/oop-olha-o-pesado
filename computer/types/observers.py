@@ -17,8 +17,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from .signals    import Frame, ControlSignal
-from .detections import FrameResult
+from .signals import Frame, ControlSignal
 
 
 # ── Observers (consumers) ────────────────────────────────────────────────────
@@ -31,11 +30,6 @@ class FrameObserver(ABC):
 class ControlObserver(ABC):
     @abstractmethod
     def on_control(self, signal: ControlSignal) -> None: ...
-
-
-class ResultObserver(ABC):
-    @abstractmethod
-    def on_result(self, result: FrameResult) -> None: ...
 
 
 # ── Observables (producers — cooperative mixin) ───────────────────────────────
@@ -66,17 +60,3 @@ class ControlObservable:
     def _notify_control(self, signal: ControlSignal) -> None:
         for obs in self._control_observers:
             obs.on_control(signal)
-
-
-class ResultObservable:
-    """Mixin for classes that produce FrameResult events."""
-
-    def __init__(self) -> None:
-        self._result_observers: list[ResultObserver] = []
-
-    def add_result_observer(self, obs: ResultObserver) -> None:
-        self._result_observers.append(obs)
-
-    def _notify_result(self, result: FrameResult) -> None:
-        for obs in self._result_observers:
-            obs.on_result(result)
