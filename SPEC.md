@@ -233,9 +233,17 @@ The primary reference produced by both the vision pipeline and the manual contro
 | Field | Type | Range | Semantics |
 |-------|------|-------|-----------|
 | `angle_deg` | float32 | [-180, 180] | Direction the robot should move |
-| `speed_ref` | float32 | [-1, 1] | Speed magnitude |
+| `speed_ref` | float32 | [-1, 1] | Speed magnitude (+1 = max forward, -1 = max backward) |
+| `buzzer` | bool | — | `True` = buzzer on |
+| `leds` | uint8 | one-hot | `0b001` yellow, `0b010` green, `0b100` red |
 
-`ControlSignal(angle_deg=0.0, speed_ref=0.0)` is the canonical **stopped** state.
+Factory methods encode robot state:
+
+| Method | buzzer | leds | Meaning |
+|--------|--------|------|---------|
+| `ControlSignal.waiting()` | off | yellow | Scanning for agent |
+| `ControlSignal.following(angle, speed)` | off | green | Tracking agent |
+| `ControlSignal.lost()` | on | red | Agent lost (2 s timeout) |
 
 ### 4.2 Wheel Power Mapping (Robot side)
 
