@@ -4,18 +4,16 @@ computer.types — shared interfaces and pure data types.
 No I/O, no threading, no business logic.
 """
 
-from .signals    import Frame, ControlSignal
-from .detections import Detection, FrameResult
-from .observers  import (
-    FrameObserver, ControlObserver, ResultObserver,
-    FrameObservable, ControlObservable, ResultObservable,
+from .signals   import Frame, ControlSignal
+from .observers import (
+    FrameObserver, ControlObserver,
+    FrameObservable, ControlObservable,
 )
-from .transport  import Transport
+from .transport import Transport
 
 __all__ = [
     "Frame", "ControlSignal",
-    "Detection", "FrameResult",
-    "FrameObserver", "ControlObserver", "ResultObserver",
-    "FrameObservable", "ControlObservable", "ResultObservable",
+    "FrameObserver", "ControlObserver",
+    "FrameObservable", "ControlObservable",
     "Transport",
 ]

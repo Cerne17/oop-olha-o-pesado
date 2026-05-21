@@ -47,7 +47,6 @@ class ImageReceiver(FrameObservable):
     def CloseImages(self):
         if self.cap is not None:
             self.cap.release()
-        cv2.destroyAllWindows()
     
     def Finish(self):
         self.finish = True
