@@ -41,9 +41,9 @@ There is no automated test suite — testing is done via the emulator (Phase 1) 
 
 ### Data Flow (Phase 3)
 ```
-ESP32-CAM → [Link A: UDP/WiFi] → CamReceiver → ImageAssembler → VisionProcessor
+ESP32-CAM → [Link A: UDP/WiFi] → CamReceiver → ImageAssembler → ComputerVision
                                                                        ↓
-ESP32 Robot ← [Link B: UDP/WiFi] ← RobotSender ← BlobFollowerStrategy ←
+ESP32 Robot ← [Link B: UDP/WiFi] ← RobotSender ←──────────────────────
 ```
 
 **Link A** carries IMAGE_CHUNK frames (CAM → Computer). **Link B** carries CONTROL_REF frames (Computer → Robot).
@@ -62,23 +62,23 @@ When adding a new message type, run `/sync-message-type` — it covers all the t
 ### Threading Model
 Each major component owns its thread:
 - `cam-rx` — bytes → `FrameDecoder` (state machine) → `ImageAssembler` → notify Frame
-- `vision-worker` — queue-fed frame processing → `FrameResult`
+- `main` — `ComputerVision.Run()` blocking loop; owns OpenCV window (Phase 3 only)
 - `robot-tx` — newest-wins queue (maxsize=1); 20 Hz send rate, 1 Hz heartbeat fallback
 - `keyboard-pub` — 20 Hz key polling (manual phases only)
 
-Key invariants: main thread never blocks on I/O; newest-wins queues drop stale commands; graceful shutdown via stop event + 3 s join timeout.
+Key invariants: newest-wins queues drop stale commands; graceful shutdown via stop event + 3 s join timeout.
 
 ### Observer Pattern
 Modules are decoupled via typed observer/observable pairs in `computer/types/`:
-- `FrameObserver/Observable` — CamReceiver → VisionProcessor
-- `ResultObserver/Observable` — VisionProcessor → BlobFollowerStrategy
-- `ControlObserver/Observable` — Strategy/KeyboardController → RobotSender
+- `FrameObserver/Observable` — CamReceiver → ComputerVision
+- `ControlObserver/Observable` — ComputerVision/KeyboardController → RobotSender
 
 ### Key Files
 | File | Role |
 |------|------|
 | `computer/main.py` | Phase router and component factory |
-| `computer/types/` | Shared signal contracts (Frame, ControlSignal, FrameResult) |
+| `computer/types/` | Shared signal contracts (Frame, ControlSignal) |
+| `computer/vision/computer_vision_class.py` | Phase 3 vision + state-machine (MediaPipe + YOLO) |
 | `computer/communication/protocol.py` | Binary codec (pure, no I/O) |
 | `computer/communication/cam_receiver.py` | Link A orchestrator |
 | `computer/communication/robot_sender.py` | Link B TX thread |
@@ -87,9 +87,6 @@ Modules are decoupled via typed observer/observable pairs in `computer/types/`:
 | `RUNNING.md` | Step-by-step execution guides for all phases |
 | `FIRMWARE.md` | Hardware wiring and flashing instructions |
 | `THREADS.md` | Threading model documentation |
-
-### Unimplemented Stubs
-`VisionProcessor._worker_loop()` and `BlobFollowerStrategy.on_result()` are `NotImplementedError` — Phase 3 vision logic is not yet implemented.
 
 ## Custom Skills
 
@@ -100,8 +97,6 @@ Project skills live in `.claude/skills/` and are auto-discovered by Claude Code.
 - `/implement-transport` — adding a new link type (WebSocket, UDP, …)
 - `/use-udp-transport` — both links use UDP/WiFi; reference for computer config and ESP32 firmware
 - `/debug-udp` — UDP-specific issues: no datagrams, CRC errors, watchdog over WiFi
-- `/implement-detector` — writing a new `Detector` subclass
-- `/implement-strategy` — writing a new `ControlStrategy`
 - `/debug-robot-comm` — WiFi connection issues, watchdog triggers, wrong wheel behaviour
 - `/add-motion-mode` — adding a new drive mode
 - `/debug-cam-comm` — camera init failure, frames not streaming
