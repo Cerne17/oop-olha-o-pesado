@@ -92,10 +92,10 @@ class DecodedFrame:
         self.payload  = payload
         self.crc_ok   = crc_ok
 
-    def decode_control_ref(self) -> tuple[float, float]:
-        """Returns (angle_deg, speed_ref). Payload must be 8 bytes."""
-        angle_deg, speed_ref = struct.unpack('<ff', self.payload[:8])
-        return angle_deg, speed_ref
+    def decode_control_ref(self) -> tuple[float, float, int, int]:
+        """Returns (angle_deg, speed_ref, buzzer, leds). Payload must be 10 bytes."""
+        angle_deg, speed_ref, buzzer, leds = struct.unpack('<ffBB', self.payload[:10])
+        return angle_deg, speed_ref, buzzer, leds
 
     def decode_ack(self) -> tuple[int, int]:
         """Returns (acked_seq, status)."""

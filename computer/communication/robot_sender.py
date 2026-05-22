@@ -63,7 +63,7 @@ class RobotSender(ControlObserver):
         self._stop_event.set()
         # Unblock the queue.get() in _tx_loop
         try:
-            self._cmd_queue.put_nowait(ControlSignal.stopped())
+            self._cmd_queue.put_nowait(ControlSignal.waiting())
         except queue.Full:
             pass
         if self._tx_thread:
@@ -128,7 +128,8 @@ class RobotSender(ControlObserver):
 
             try:
                 if signal is not None:
-                    payload = ControlRefPayload(signal.angle_deg, signal.speed_ref)
+                    payload = ControlRefPayload(signal.angle_deg, signal.speed_ref,
+                                               int(signal.buzzer), signal.leds)
                     frame   = self._encoder.build_control_ref(self._next_seq(), payload)
                     self._transport.send(frame)
                     self._tx_frames += 1

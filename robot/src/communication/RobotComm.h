@@ -85,6 +85,6 @@ private:
     void _feedByte(uint8_t b);
     void _dispatchFrame();
 
-    static constexpr size_t MAX_PAYLOAD = 16;  // CONTROL_REF=8, ACK=3, HB=0
+    static constexpr size_t MAX_PAYLOAD = 16;  // CONTROL_REF=10, ACK=3, HB=0
     uint8_t _payload_buf[MAX_PAYLOAD];
 };
