@@ -89,16 +89,19 @@ class ImageChunkHeader:
 class ControlRefPayload:
     angle_deg: float  # float32, [-180.0, 180.0]
     speed_ref: float  # float32, [-1.0, 1.0]
+    buzzer:    int    # uint8, 0=off 1=on
+    leds:      int    # uint8, one-hot: 0b001=yellow 0b010=green 0b100=red
 
-    _FMT: ClassVar[str] = '<ff'
+    _FMT: ClassVar[str] = '<ffBB'
 
     def pack(self) -> bytes:
-        return struct.pack(self._FMT, self.angle_deg, self.speed_ref)
+        return struct.pack(self._FMT, self.angle_deg, self.speed_ref,
+                           self.buzzer, self.leds)
 
     @classmethod
     def unpack(cls, data: bytes) -> ControlRefPayload:
-        angle, speed = struct.unpack_from(cls._FMT, data)
-        return cls(angle, speed)
+        angle, speed, buzzer, leds = struct.unpack_from(cls._FMT, data)
+        return cls(angle, speed, buzzer, leds)
 
 
 @dataclass

@@ -52,7 +52,7 @@ The Camera and Robot are **two separate physical boards** connected to the Compu
 | CAM → Computer | `IMAGE_CHUNK` | 512-byte JPEG slice | 6–10 FPS |
 | Computer → CAM | `ACK` | frame_id + status | once per assembled frame |
 | Both (Link A) | `HEARTBEAT` | empty | 1 Hz |
-| Computer → Robot | `CONTROL_REF` | angle_deg + speed_ref | up to 20 Hz |
+| Computer → Robot | `CONTROL_REF` | angle_deg + speed_ref + buzzer + leds | up to 20 Hz |
 | Both (Link B) | `HEARTBEAT` | empty | 1 Hz |
 
 ### 1.4 Modes of Operation
@@ -180,7 +180,7 @@ def crc16(data: bytes) -> int:
 
 | Name | Value | Direction | Payload struct |
 |------|-------|-----------|----------------|
-| `CONTROL_REF` | `0x01` | Computer → Robot | `ControlRefPayload` (8 B) |
+| `CONTROL_REF` | `0x01` | Computer → Robot | `ControlRefPayload` (10 B) |
 | `ACK` | `0x02` | Both | `AckPayload` (3 B) |
 | `HEARTBEAT` | `0x03` | Both | empty |
 
@@ -196,7 +196,7 @@ uint32_t  total_size     total JPEG byte count for the full frame
 ```
 Followed immediately by raw JPEG bytes (up to 512 bytes per chunk).
 
-**`ControlRefPayload`** — 8 bytes
+**`ControlRefPayload`** — 10 bytes
 
 ```
 float32   angle_deg   movement direction, clockwise from straight forward
@@ -210,6 +210,11 @@ float32   speed_ref   speed magnitude
                        +1.0 = maximum forward speed
                         0.0 = stopped
                        -1.0 = maximum reverse speed
+uint8_t   buzzer      0 = off, 1 = on  (GPIO 33)
+uint8_t   leds        one-hot indicator LEDs
+                      0x01 = yellow (GPIO 25)
+                      0x02 = green  (GPIO 26)
+                      0x04 = red    (GPIO 27)
 ```
 
 **`AckPayload`** — 3 bytes
@@ -570,6 +575,11 @@ class CamReceiver(FrameObservable):
 
 ```
 loop:
+  send HEARTBEAT if >1 s since last sent   # proactive — bootstraps UDP;
+                                           # CAM won't stream until it receives
+                                           # the first heartbeat and learns the
+                                           # computer's IP:port
+
   raw = transport.receive_available(4096)
   if not raw: sleep(5 ms); continue
 
@@ -586,7 +596,7 @@ loop:
         send ACK(frame.seq_num, status=OK)
 
     elif frame.msg_type == HEARTBEAT:
-      record timestamp; reply HEARTBEAT if >1 s since last sent
+      record timestamp
 
     else:
       send ACK(frame.seq_num, status=UNKNOWN_TYPE)
@@ -890,8 +900,10 @@ enum class MsgType : uint8_t {
 };
 
 struct ControlRefPayload {
-    float angle_deg;  // [-180.0, 180.0]
-    float speed_ref;  // [-1.0, 1.0]
+    float   angle_deg;  // [-180.0, 180.0]
+    float   speed_ref;  // [-1.0, 1.0]
+    uint8_t buzzer;     // 0=off, 1=on  (GPIO 33)
+    uint8_t leds;       // one-hot: 0x01=yellow(GPIO25) 0x02=green(GPIO26) 0x04=red(GPIO27)
 } __attribute__((packed));
 
 struct AckPayload {

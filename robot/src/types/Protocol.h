@@ -37,7 +37,7 @@ constexpr size_t OVERHEAD    = HEADER_SIZE + FOOTER_SIZE;
 // Message types — Link B
 // ---------------------------------------------------------------------------
 enum class MsgType : uint8_t {
-    CONTROL_REF = 0x01,  // Computer → Robot : angle_deg + speed_ref
+    CONTROL_REF = 0x01,  // Computer → Robot : angle_deg + speed_ref + buzzer + leds
     ACK         = 0x02,  // Both             : acknowledgement
     HEARTBEAT   = 0x03,  // Both             : keep-alive (empty payload)
 };
@@ -58,9 +58,18 @@ enum class MsgType : uint8_t {
 //               +1.0 = maximum forward speed
 //                0.0 = stopped
 //               -1.0 = maximum reverse speed
+//
+//   buzzer    — 0 = off, 1 = on  (GPIO 33)
+//
+//   leds      — one-hot indicator:
+//               0x01 = yellow (GPIO 25) — waiting
+//               0x02 = green  (GPIO 26) — following
+//               0x04 = red    (GPIO 27) — lost
 struct ControlRefPayload {
-    float angle_deg;  // [-180.0, 180.0]
-    float speed_ref;  // [-1.0, 1.0]
+    float   angle_deg;  // [-180.0, 180.0]
+    float   speed_ref;  // [-1.0, 1.0]
+    uint8_t buzzer;     // 0=off, 1=on
+    uint8_t leds;       // one-hot: 0x01=yellow(GPIO25), 0x02=green(GPIO26), 0x04=red(GPIO27)
 } __attribute__((packed));
 
 // ACK status codes — carried in AckPayload.status

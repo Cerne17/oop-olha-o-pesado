@@ -61,7 +61,7 @@ When adding a new message type, run `/sync-message-type` — it covers all the t
 
 ### Threading Model
 Each major component owns its thread:
-- `cam-rx` — bytes → `FrameDecoder` (state machine) → `ImageAssembler` → notify Frame
+- `cam-rx` — sends 1 Hz proactive HEARTBEAT (bootstraps UDP; CAM won't stream until it receives the first HB and learns the computer's IP:port); bytes → `FrameDecoder` (state machine) → `ImageAssembler` → notify Frame
 - `main` — `ComputerVision.Run()` blocking loop; owns OpenCV window (Phase 3 only)
 - `robot-tx` — newest-wins queue (maxsize=1); 20 Hz send rate, 1 Hz heartbeat fallback
 - `keyboard-pub` — 20 Hz key polling (manual phases only)
@@ -78,8 +78,10 @@ Modules are decoupled via typed observer/observable pairs in `computer/types/`:
 |------|------|
 | `computer/main.py` | Phase router and component factory |
 | `computer/types/` | Shared signal contracts (Frame, ControlSignal) |
-| `computer/vision/computer_vision_class.py` | Phase 3 vision + state-machine (MediaPipe + YOLO) |
+| `computer/vision/computer_vision_class.py` | Phase 3 vision + state-machine (MediaPipe hand gestures + YOLO person tracking) |
+| `computer/vision/detection_utils.py` | MediaPipe gesture logic + YOLO person detection helpers |
 | `computer/communication/protocol.py` | Binary codec (pure, no I/O) |
+| `computer/communication/transport.py` | Concrete transports: SerialTransport, RFCOMMTransport, TCPTransport, UDPTransport |
 | `computer/communication/cam_receiver.py` | Link A orchestrator |
 | `computer/communication/robot_sender.py` | Link B TX thread |
 | `emulator/src/robot_emulator.py` | Emulator main coordinator |

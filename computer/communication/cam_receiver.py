@@ -97,6 +97,19 @@ class CamReceiver(FrameObservable):
                 else:
                     break
 
+            # Proactive 1 Hz heartbeat — bootstraps UDP (CAM won't stream until
+            # it receives the first heartbeat and learns the computer's IP:port)
+            # and keeps the CAM watchdog alive during idle periods.
+            now = time.monotonic()
+            if now - self._last_heartbeat_tx >= 1.0:
+                try:
+                    self._transport.send(
+                        self._encoder.build_heartbeat(self._next_seq(), CamMsg.HEARTBEAT)
+                    )
+                    self._last_heartbeat_tx = now
+                except ConnectionError as exc:
+                    print(f"[CAM] Heartbeat send error: {exc}")
+
             try:
                 raw = self._transport.receive_available(max_bytes=4096)
             except ConnectionError as exc:
@@ -140,13 +153,6 @@ class CamReceiver(FrameObservable):
 
                 elif t == CamMsg.HEARTBEAT:
                     self._last_heartbeat_rx = time.monotonic()
-                    now = time.monotonic()
-                    if now - self._last_heartbeat_tx >= 1.0:
-                        seq = self._next_seq()
-                        self._transport.send(
-                            self._encoder.build_heartbeat(seq, CamMsg.HEARTBEAT)
-                        )
-                        self._last_heartbeat_tx = now
 
                 else:
                     seq = self._next_seq()

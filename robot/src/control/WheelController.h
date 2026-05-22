@@ -92,7 +92,7 @@ private:
     // State — reference (written by UDP task, read by control task)
     // -------------------------------------------------------------------------
     SemaphoreHandle_t          _ref_mutex;
-    Protocol::ControlRefPayload _ref { 0.0f, 0.0f };  // safe initial state: stopped
+    Protocol::ControlRefPayload _ref {};  // zero-init: stopped, buzzer off, leds off
 
     // -------------------------------------------------------------------------
     // State — current (smoothed) wheel powers (only written by control task)

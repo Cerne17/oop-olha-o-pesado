@@ -87,6 +87,17 @@ Default pin assignment (`robot/src/main.cpp:11-14`):
 | Left wheel  | GPIO 14 | GPIO 12 |
 | Right wheel | GPIO 15 | GPIO  2 |
 
+### 2.2b Indicator outputs
+
+| Output | GPIO | Meaning |
+|--------|------|---------|
+| Yellow LED | GPIO 25 | Waiting — scanning for agent |
+| Green LED  | GPIO 26 | Following — tracking agent |
+| Red LED    | GPIO 27 | Lost — agent lost (2 s timeout) |
+| Buzzer     | GPIO 33 | Active during Lost state |
+
+Pin constants are defined in `robot/src/main.cpp` as `PIN_LED_YELLOW`, `PIN_LED_GREEN`, `PIN_LED_RED`, `PIN_BUZZER`. All driven by `RobotComm::_dispatchFrame()` on every received `CONTROL_REF` frame.
+
 To change the pins, edit `robot/src/main.cpp`:
 ```cpp
 static constexpr WheelPins LEFT_WHEEL  = { .pwm = 14, .dir = 12 };
@@ -287,7 +298,9 @@ pio device monitor --baud 115200
 Expected boot output:
 ```
 === CAM ESP32 booting ===
-[CAM] Bluetooth started as 'RobotCAM'
+[CAM] Connecting to WiFi.....
+[CAM] WiFi IP: 192.168.1.43
+[CAM] UDP listening on port 5006
 === Ready ===
 ```
 
@@ -326,7 +339,7 @@ cp robot/src/credentials.example.h robot/src/credentials.h
 
 | Constant | Default | Description |
 |----------|---------|-------------|
-| `BT_NAME` | `"RobotCAM"` | Bluetooth device name |
+| `UDP_PORT` | `5006` | UDP port the CAM listens on |
 | `TARGET_FPS` | `6.0` | Target JPEG stream frame rate |
 
 ### CAM image quality (`cam/src/communication/CamComm.cpp:328-329`)
@@ -337,15 +350,14 @@ cp robot/src/credentials.example.h robot/src/credentials.h
 | `jpeg_quality` | `15` | 0 = highest quality (largest file), 63 = lowest |
 
 Increasing resolution or decreasing `jpeg_quality` increases JPEG size and
-may saturate the Bluetooth link at 6 FPS. Reduce `TARGET_FPS` or increase
+may saturate the WiFi link at 6 FPS. Reduce `TARGET_FPS` or increase
 `jpeg_quality` if frames are dropped.
 
 ---
 
 ## 7. WiFi setup (Robot ESP32)
 
-The robot communicates over UDP — no Bluetooth pairing needed. The CAM board
-still uses Bluetooth (see §7.2 below).
+Both the robot and the CAM communicate over UDP — no Bluetooth pairing needed.
 
 ### 7.1 Prepare credentials
 

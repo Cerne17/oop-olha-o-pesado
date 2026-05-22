@@ -131,13 +131,14 @@ class RobotEmulator:
                 t = frame.msg_type
 
                 if t == MSG_CONTROL_REF:
-                    if len(frame.payload) >= 8:
-                        angle_deg, speed_ref = frame.decode_control_ref()
+                    if len(frame.payload) >= 10:
+                        angle_deg, speed_ref, buzzer, leds = frame.decode_control_ref()
                         self._robot.set_ref(angle_deg, speed_ref)
                         ack = self._encoder.build_ack(self._next_seq(), frame.seq_num, status=0)
                         self._send(ack)
                         if self._verbose:
-                            print(f"[RX] CONTROL_REF angle={angle_deg:.1f} speed={speed_ref:+.2f}")
+                            print(f"[RX] CONTROL_REF angle={angle_deg:.1f} speed={speed_ref:+.2f}"
+                                  f" buzzer={buzzer} leds={leds:#05b}")
 
                 elif t == MSG_HEARTBEAT:
                     now = time.monotonic()

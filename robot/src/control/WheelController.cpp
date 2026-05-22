@@ -81,7 +81,7 @@ void WheelController::emergencyStop() {
 
     // Zero the stored reference so the next update() stays stopped.
     xSemaphoreTake(_ref_mutex, portMAX_DELAY);
-    _ref = { 0.0f, 0.0f };
+    _ref = {};
     xSemaphoreGive(_ref_mutex);
 }
 
