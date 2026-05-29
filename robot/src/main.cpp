@@ -23,7 +23,7 @@ static constexpr WheelPins LEFT_WHEEL = {.en = 14, .right = 12, .left = 13};
 
 // Right wheel — ENB=GPIO25, IN3=GPIO26  (clockwise), IN4=GPIO27
 // (counter-clockwise)
-static constexpr WheelPins RIGHT_WHEEL = {.en = 25, .right = 26, .left = 27};
+static constexpr WheelPins RIGHT_WHEEL = {.en = 26, .right = 25, .left = 27};
 // ---------------------------------------------------------------------------
 
 static WheelController wheels(LEFT_WHEEL, RIGHT_WHEEL);

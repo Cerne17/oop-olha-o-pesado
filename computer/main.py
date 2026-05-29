@@ -41,12 +41,12 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
         cam_port        = None,
     ),
     2: PhaseConfig(
-        robot_port      = "192.168.1.42:5005",  # ESP32 WiFi IP + listen port
+        robot_port      = "10.221.47.106:5005",  # ESP32 WiFi IP + listen port
         robot_transport = "udp",
         cam_port        = None,
     ),
     3: PhaseConfig(
-        robot_port      = "192.168.1.42:5005",  # robot ESP32 WiFi IP + listen port
+        robot_port      = "10.221.47.106:5005",  # robot ESP32 WiFi IP + listen port
         robot_transport = "udp",
         cam_port        = "192.168.37.107:81",  # CAM ESP32 WiFi IP + HTTP MJPEG port
         cam_transport   = "mjpeg",
