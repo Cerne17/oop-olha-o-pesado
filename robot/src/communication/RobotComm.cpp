@@ -231,6 +231,24 @@ void RobotComm::_dispatchFrame() {
             digitalWrite(26, (ref.leds & 0x02) ? HIGH : LOW);  // green
             digitalWrite(27, (ref.leds & 0x04) ? HIGH : LOW);  // red
             _sendAck(_rx.seq_num, Protocol::AckStatus::OK);
+
+            // Blink the on-board LED (GPIO2) on every received command so the
+            // RX activity is visible at a glance. Toggling at the 20 Hz command
+            // rate produces a steady flicker that freezes when the link drops.
+            static bool led_on = false;
+            led_on = !led_on;
+            digitalWrite(2, led_on ? HIGH : LOW);
+
+            // Debug log throttled to ~1 Hz so the 20 Hz command stream does
+            // not flood the serial monitor (or stall this RX task).
+            static uint32_t last_log_ms = 0;
+            uint32_t now = millis();
+            if (now - last_log_ms >= 1000) {
+                Serial.printf(
+                    "[ROBOT] CTRL seq=%u angle=%.1f speed=%.2f buzzer=%u leds=0x%02X\n",
+                    _rx.seq_num, ref.angle_deg, ref.speed_ref, ref.buzzer, ref.leds);
+                last_log_ms = now;
+            }
         }
         break;
 
