@@ -1,0 +1,387 @@
+{
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/settings.json": {
+    "mtime": 1778964903.4865744,
+    "ast_hash": "195e2ba94377246dff3f7af7719abb1d",
+    "semantic_hash": "195e2ba94377246dff3f7af7719abb1d"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/settings.local.json": {
+    "mtime": 1778946376.1174724,
+    "ast_hash": "fa663c003f747545f8e4578d0f82bb11",
+    "semantic_hash": "fa663c003f747545f8e4578d0f82bb11"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/main.cpp": {
+    "mtime": 1779386497.2623422,
+    "ast_hash": "6e8759554ceb64a73e6e55dcc9f82c62",
+    "semantic_hash": "6e8759554ceb64a73e6e55dcc9f82c62"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/types/Protocol.h": {
+    "mtime": 1779387038.3418574,
+    "ast_hash": "d46ac499f3e6de79c6de5afbf931873c",
+    "semantic_hash": "d46ac499f3e6de79c6de5afbf931873c"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/types/MotorTypes.h": {
+    "mtime": 1778947993.319576,
+    "ast_hash": "4a2de30751ce0b4e81a98417d7a9f658",
+    "semantic_hash": "4a2de30751ce0b4e81a98417d7a9f658"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/communication/RobotComm.cpp": {
+    "mtime": 1779386511.672323,
+    "ast_hash": "b5e675248bdd5e746e609b995fc69e79",
+    "semantic_hash": "b5e675248bdd5e746e609b995fc69e79"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/communication/RobotComm.h": {
+    "mtime": 1779386475.6962664,
+    "ast_hash": "a402b9ebe8e70ee0160748f4f586fa6c",
+    "semantic_hash": "a402b9ebe8e70ee0160748f4f586fa6c"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/control/WheelController.cpp": {
+    "mtime": 1779387068.3401022,
+    "ast_hash": "aadfc9b69a40264d304cefb9b8023ae4",
+    "semantic_hash": "aadfc9b69a40264d304cefb9b8023ae4"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/robot/src/control/WheelController.h": {
+    "mtime": 1779387056.1924555,
+    "ast_hash": "c65dce8b5c1771d01de8317c9707262b",
+    "semantic_hash": "c65dce8b5c1771d01de8317c9707262b"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/cam/src/main.cpp": {
+    "mtime": 1778950368.9088848,
+    "ast_hash": "c18290f74c0af14984a783e6a47bfa19",
+    "semantic_hash": "c18290f74c0af14984a783e6a47bfa19"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/cam/src/types/Protocol.h": {
+    "mtime": 1777143264.9211276,
+    "ast_hash": "b05723ee9489a91a7b42d4cd91ad39bc",
+    "semantic_hash": "b05723ee9489a91a7b42d4cd91ad39bc"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/cam/src/communication/CamComm.cpp": {
+    "mtime": 1778950362.9289465,
+    "ast_hash": "ebe7a9dda326d8a7fc4767e959d0b3e9",
+    "semantic_hash": "ebe7a9dda326d8a7fc4767e959d0b3e9"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/cam/src/communication/CamComm.h": {
+    "mtime": 1778950307.312463,
+    "ast_hash": "831dfea9ddc056f8a484e7a955b861f4",
+    "semantic_hash": "831dfea9ddc056f8a484e7a955b861f4"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/scripts/run.sh": {
+    "mtime": 1778950442.5298786,
+    "ast_hash": "b9f6e7bd50e0437c4cb535a29c6ed255",
+    "semantic_hash": "b9f6e7bd50e0437c4cb535a29c6ed255"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/__init__.py": {
+    "mtime": 1776126595.4259973,
+    "ast_hash": "7753dc410d42cca053f45beb5eec5231",
+    "semantic_hash": "7753dc410d42cca053f45beb5eec5231"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/main.py": {
+    "mtime": 1779384688.8338857,
+    "ast_hash": "d894a173ed6585e68104abd62a9e3abb",
+    "semantic_hash": "d894a173ed6585e68104abd62a9e3abb"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/types/signals.py": {
+    "mtime": 1779381952.5934632,
+    "ast_hash": "def8a7d659ffbdd3c6e22d014f18be7f",
+    "semantic_hash": "def8a7d659ffbdd3c6e22d014f18be7f"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/types/transport.py": {
+    "mtime": 1777142206.1578016,
+    "ast_hash": "53f91c62d8ce08944efdfa9cc766ad47",
+    "semantic_hash": "53f91c62d8ce08944efdfa9cc766ad47"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/types/__init__.py": {
+    "mtime": 1779384620.2457073,
+    "ast_hash": "b90d25c146d3f5996f06d3ba1a63a40d",
+    "semantic_hash": "b90d25c146d3f5996f06d3ba1a63a40d"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/types/observers.py": {
+    "mtime": 1779384608.8649354,
+    "ast_hash": "512658fe363e877446a07c37d5f41055",
+    "semantic_hash": "512658fe363e877446a07c37d5f41055"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/image_utils.py": {
+    "mtime": 1779380917.7641752,
+    "ast_hash": "c862f40413d19083d86ffc28f3b24650",
+    "semantic_hash": "c862f40413d19083d86ffc28f3b24650"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/__init__.py": {
+    "mtime": 1777142499.0703382,
+    "ast_hash": "91b01b72efb928b11aad693e2307fa13",
+    "semantic_hash": "91b01b72efb928b11aad693e2307fa13"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/detection_utils.py": {
+    "mtime": 1779380917.763686,
+    "ast_hash": "78e6d264366482595c2795081e467292",
+    "semantic_hash": "78e6d264366482595c2795081e467292"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/computer_vision_class.py": {
+    "mtime": 1779384654.3391528,
+    "ast_hash": "17588fb6a6c4d3277187bdf1f136eb31",
+    "semantic_hash": "17588fb6a6c4d3277187bdf1f136eb31"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/test_vision.py": {
+    "mtime": 1779380917.7643762,
+    "ast_hash": "ef19742e3c30f31f0e4f84d420a3264a",
+    "semantic_hash": "ef19742e3c30f31f0e4f84d420a3264a"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/vision/image_receiver_class.py": {
+    "mtime": 1779384698.036055,
+    "ast_hash": "d2041e9194c02697edbe3727f8071b36",
+    "semantic_hash": "d2041e9194c02697edbe3727f8071b36"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/manual/__init__.py": {
+    "mtime": 1777142741.855136,
+    "ast_hash": "9d470726af7d4330bf0b7940204fd808",
+    "semantic_hash": "9d470726af7d4330bf0b7940204fd808"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/manual/main.py": {
+    "mtime": 1777147058.3272588,
+    "ast_hash": "c51b0a921bd3da2f6ff1624b5804ce7a",
+    "semantic_hash": "c51b0a921bd3da2f6ff1624b5804ce7a"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/manual/keyboard.py": {
+    "mtime": 1779384636.263536,
+    "ast_hash": "d3b9cfdb702cc9d27485c825c854a09b",
+    "semantic_hash": "d3b9cfdb702cc9d27485c825c854a09b"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/transport.py": {
+    "mtime": 1778943901.3619428,
+    "ast_hash": "c82a944d94c722846dd652c0ae51c33c",
+    "semantic_hash": "c82a944d94c722846dd652c0ae51c33c"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/robot_sender.py": {
+    "mtime": 1779386450.308152,
+    "ast_hash": "d091f46ba1a1822e079f7befb31e15a0",
+    "semantic_hash": "d091f46ba1a1822e079f7befb31e15a0"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/protocol.py": {
+    "mtime": 1779386379.5004961,
+    "ast_hash": "3653dcf51255eacaa85f02f7958f2bcc",
+    "semantic_hash": "3653dcf51255eacaa85f02f7958f2bcc"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/__init__.py": {
+    "mtime": 1777142219.174174,
+    "ast_hash": "84a3f643cbf22da9eea3606311530896",
+    "semantic_hash": "84a3f643cbf22da9eea3606311530896"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/assembler.py": {
+    "mtime": 1777142276.4711833,
+    "ast_hash": "d0ccd78602d60ac238aa875b54e0497f",
+    "semantic_hash": "d0ccd78602d60ac238aa875b54e0497f"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/computer/communication/cam_receiver.py": {
+    "mtime": 1779387307.6344655,
+    "ast_hash": "57dd3d19dfc1619e4d856b8dc8e15ed5",
+    "semantic_hash": "57dd3d19dfc1619e4d856b8dc8e15ed5"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/tcp_link.py": {
+    "mtime": 1777164668.3500497,
+    "ast_hash": "c5383ec6525140aa2c5b3d50725363a4",
+    "semantic_hash": "c5383ec6525140aa2c5b3d50725363a4"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/robot_emulator.py": {
+    "mtime": 1779386538.5399714,
+    "ast_hash": "5de64d317640c6f49cd40635ef8a0b5b",
+    "semantic_hash": "5de64d317640c6f49cd40635ef8a0b5b"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/emulator.py": {
+    "mtime": 1777164668.3414557,
+    "ast_hash": "8250d42f250ded8e2e1ca983d0752f53",
+    "semantic_hash": "8250d42f250ded8e2e1ca983d0752f53"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/simulated_robot.py": {
+    "mtime": 1777164668.342672,
+    "ast_hash": "e03bf1ec4a6e72a475aa88cc56b0b788",
+    "semantic_hash": "e03bf1ec4a6e72a475aa88cc56b0b788"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/keyboard_input.py": {
+    "mtime": 1777164668.3455133,
+    "ast_hash": "1d98e9b55f8fd6db1f01364ca3f4afa6",
+    "semantic_hash": "1d98e9b55f8fd6db1f01364ca3f4afa6"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/protocol.py": {
+    "mtime": 1779386523.550275,
+    "ast_hash": "15f6231bb5e9e918208fa874abf4c2fd",
+    "semantic_hash": "15f6231bb5e9e918208fa874abf4c2fd"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/serial_link.py": {
+    "mtime": 1777164668.3450994,
+    "ast_hash": "94d1b367fe5cbeb1465befa419b02058",
+    "semantic_hash": "94d1b367fe5cbeb1465befa419b02058"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/main.py": {
+    "mtime": 1777164668.3433626,
+    "ast_hash": "b7c276a138ef217befd7484d72fa7369",
+    "semantic_hash": "b7c276a138ef217befd7484d72fa7369"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/src/image_generator.py": {
+    "mtime": 1777164668.3445873,
+    "ast_hash": "44dcbf22b72b97c7c99061749620c31c",
+    "semantic_hash": "44dcbf22b72b97c7c99061749620c31c"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/requirements.txt": {
+    "mtime": 1777164668.340355,
+    "ast_hash": "463cdc042db4d32cf26d91588528c325",
+    "semantic_hash": "463cdc042db4d32cf26d91588528c325"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/THREADS.md": {
+    "mtime": 1777147254.7524452,
+    "ast_hash": "5bee252b097d81c15b68ec957d3dc41f",
+    "semantic_hash": "5bee252b097d81c15b68ec957d3dc41f"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/RUNNING.md": {
+    "mtime": 1779384712.083416,
+    "ast_hash": "debd7e9163f5e87c5d7d25baa51d1415",
+    "semantic_hash": "debd7e9163f5e87c5d7d25baa51d1415"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/TODO.md": {
+    "mtime": 1778951014.141372,
+    "ast_hash": "2a7ccb1e678e40fd5dc03658bd0e38bf",
+    "semantic_hash": "2a7ccb1e678e40fd5dc03658bd0e38bf"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/README.md": {
+    "mtime": 1778950772.1953306,
+    "ast_hash": "c505f2f05d89492f89d2c2043008d29b",
+    "semantic_hash": "c505f2f05d89492f89d2c2043008d29b"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/FIRMWARE.md": {
+    "mtime": 1779387529.203157,
+    "ast_hash": "735774d17f4ec4a3ef57006d3eb3933d",
+    "semantic_hash": "735774d17f4ec4a3ef57006d3eb3933d"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/SPEC.md": {
+    "mtime": 1779387500.3941836,
+    "ast_hash": "ec0f2f737e8d29bf20ff14476f6955b0",
+    "semantic_hash": "ec0f2f737e8d29bf20ff14476f6955b0"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/DIAGNOSIS.md": {
+    "mtime": 1778944906.6633763,
+    "ast_hash": "ec6dbba4d3634e302c9f4ac6241fefd2",
+    "semantic_hash": "ec6dbba4d3634e302c9f4ac6241fefd2"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/PHASE2_GUIDE.md": {
+    "mtime": 1778083664.434834,
+    "ast_hash": "4c83474b600f4da283c988d5c0b33928",
+    "semantic_hash": "4c83474b600f4da283c988d5c0b33928"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/CLAUDE.md": {
+    "mtime": 1779387684.1266654,
+    "ast_hash": "c2de70173da8142d445539b17b727f86",
+    "semantic_hash": "c2de70173da8142d445539b17b727f86"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/implement-detector/SKILL.md": {
+    "mtime": 1777669330.6520138,
+    "ast_hash": "7618ff3e6ac8934198408d6dc280aa0f",
+    "semantic_hash": "7618ff3e6ac8934198408d6dc280aa0f"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-robot-comm/SKILL.md": {
+    "mtime": 1778951066.272473,
+    "ast_hash": "8c7a2fcf32dd89c1f923a8622bec49b4",
+    "semantic_hash": "8c7a2fcf32dd89c1f923a8622bec49b4"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-emulator/SKILL.md": {
+    "mtime": 1777669330.657274,
+    "ast_hash": "291c8f31ba14c0f7a12bbd5a88ff0f5b",
+    "semantic_hash": "291c8f31ba14c0f7a12bbd5a88ff0f5b"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-bluetooth/SKILL.md": {
+    "mtime": 1778950841.2724001,
+    "ast_hash": "cf0e3fa02b0b2393228ba3f8114e5cf8",
+    "semantic_hash": "cf0e3fa02b0b2393228ba3f8114e5cf8"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-cam-init/SKILL.md": {
+    "mtime": 1778951067.5338151,
+    "ast_hash": "cc8e4268531e9ca2619c5d5be741ae3a",
+    "semantic_hash": "cc8e4268531e9ca2619c5d5be741ae3a"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-cam-comm/SKILL.md": {
+    "mtime": 1778950878.4903502,
+    "ast_hash": "170d54b8d14bd7fece4fc85f7c6fa665",
+    "semantic_hash": "170d54b8d14bd7fece4fc85f7c6fa665"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/extend-emulator/SKILL.md": {
+    "mtime": 1777669370.6905506,
+    "ast_hash": "42e2ccaf9e6858c56438b319f4939e83",
+    "semantic_hash": "42e2ccaf9e6858c56438b319f4939e83"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/implement-strategy/SKILL.md": {
+    "mtime": 1777669330.6545494,
+    "ast_hash": "0575b01a552ec5b69b0618d3b9f9d947",
+    "semantic_hash": "0575b01a552ec5b69b0618d3b9f9d947"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/configure-firmware/SKILL.md": {
+    "mtime": 1778950831.8907235,
+    "ast_hash": "c10d78818722d6a6dedb91bad462c480",
+    "semantic_hash": "c10d78818722d6a6dedb91bad462c480"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/sync-message-type/SKILL.md": {
+    "mtime": 1777669370.6779141,
+    "ast_hash": "60af30a2cd31124da52b812c4e6518ee",
+    "semantic_hash": "60af30a2cd31124da52b812c4e6518ee"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/add-motion-mode/SKILL.md": {
+    "mtime": 1777669370.68745,
+    "ast_hash": "6cfd496540e0c3a2f1cfc242eaf43275",
+    "semantic_hash": "6cfd496540e0c3a2f1cfc242eaf43275"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/sanitize-cpp/skill.md": {
+    "mtime": 1778949012.5135474,
+    "ast_hash": "9a119a0cb6cf11b87403e4bea412b581",
+    "semantic_hash": "9a119a0cb6cf11b87403e4bea412b581"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/use-udp-transport/SKILL.md": {
+    "mtime": 1778951026.8990257,
+    "ast_hash": "9c0d3bc115fc0999642fd93592bf05d5",
+    "semantic_hash": "9c0d3bc115fc0999642fd93592bf05d5"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/add-message-type/SKILL.md": {
+    "mtime": 1777669370.681511,
+    "ast_hash": "86c3c983a5c2c00bbebb2de124c5f3c3",
+    "semantic_hash": "86c3c983a5c2c00bbebb2de124c5f3c3"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/skills-index/SKILL.md": {
+    "mtime": 1778950980.4837835,
+    "ast_hash": "4e35e9d398327fe846d66a5bc7280da7",
+    "semantic_hash": "4e35e9d398327fe846d66a5bc7280da7"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-computer-comm/SKILL.md": {
+    "mtime": 1778950918.5581262,
+    "ast_hash": "6bba58b452529d0eba058f350b777940",
+    "semantic_hash": "6bba58b452529d0eba058f350b777940"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/implement-transport/SKILL.md": {
+    "mtime": 1777669330.6491318,
+    "ast_hash": "81fa88bdb1547d6c0d2f70fc60189945",
+    "semantic_hash": "81fa88bdb1547d6c0d2f70fc60189945"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-udp/SKILL.md": {
+    "mtime": 1778944481.8231285,
+    "ast_hash": "fc96a425f5f03e8dfa94f2bb9fe2c5da",
+    "semantic_hash": "fc96a425f5f03e8dfa94f2bb9fe2c5da"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-serial/SKILL.md": {
+    "mtime": 1778950972.6255527,
+    "ast_hash": "b726226fd52b48ea4278bee9c3d66732",
+    "semantic_hash": "b726226fd52b48ea4278bee9c3d66732"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/.claude/skills/debug-upload/SKILL.md": {
+    "mtime": 1777669330.6753347,
+    "ast_hash": "0e76e486b41e138852312c268454afda",
+    "semantic_hash": "0e76e486b41e138852312c268454afda"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/requirements.txt": {
+    "mtime": 1778065196.053818,
+    "ast_hash": "b0f31049a8d756219ec90f05e3795387",
+    "semantic_hash": "b0f31049a8d756219ec90f05e3795387"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/README.md": {
+    "mtime": 1777164638.4898684,
+    "ast_hash": "9eea0966d0db0604293849366c41a807",
+    "semantic_hash": "9eea0966d0db0604293849366c41a807"
+  },
+  "/Users/miguelcerne/Documents/projects/oop-olha-o-pesado/emulator/SPEC.md": {
+    "mtime": 1777164668.3491735,
+    "ast_hash": "b04bb0846ef9b239223392a4fea2f882",
+    "semantic_hash": "b04bb0846ef9b239223392a4fea2f882"
+  }
+}

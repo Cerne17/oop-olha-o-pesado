@@ -32,6 +32,13 @@ CamComm::CamComm(float target_fps, uint16_t listen_port)
     _tx_mutex = xSemaphoreCreateMutex();
 }
 
+uint16_t CamComm::_nextSeq() {
+    taskENTER_CRITICAL(&_seq_mux);
+    uint16_t s = _tx_seq++;
+    taskEXIT_CRITICAL(&_seq_mux);
+    return s;
+}
+
 void CamComm::begin() {
     if (!_initCamera()) {
         Serial.println("[CAM] FATAL: camera init failed — halting");
@@ -87,7 +94,7 @@ void CamComm::_cameraTask(void* arg) {
             if (chunk_len > Protocol::IMAGE_CHUNK_DATA_SIZE)
                 chunk_len = Protocol::IMAGE_CHUNK_DATA_SIZE;
 
-            self->_sendChunk(self->_tx_seq++, self->_frame_id,
+            self->_sendChunk(self->_nextSeq(), self->_frame_id,
                              i, total_chunks, total_size,
                              fb->buf + offset, chunk_len);
             vTaskDelay(0);  // yield between chunks
@@ -150,8 +157,12 @@ void CamComm::_sendChunk(uint16_t seq, uint16_t frame_id,
     size_t payload_len = sizeof(hdr) + data_len;
     size_t frame_len   = Protocol::OVERHEAD + payload_len;
 
-    uint8_t* buf = new uint8_t[frame_len];
-    if (!buf) return;
+    // Max frame: 13 overhead + 10 ImageChunkHeader + 512 data = 535 bytes.
+    static constexpr size_t MAX_FRAME = Protocol::OVERHEAD
+                                      + sizeof(Protocol::ImageChunkHeader)
+                                      + Protocol::IMAGE_CHUNK_DATA_SIZE;
+    uint8_t buf[MAX_FRAME];
+    if (frame_len > MAX_FRAME) return;
 
     uint8_t* p = buf;
 
@@ -161,8 +172,8 @@ void CamComm::_sendChunk(uint16_t seq, uint16_t frame_id,
     // Header: type(1) + seq(2 LE) + payload_len(4 LE)
     uint8_t* crc_start = p;
     *p++ = static_cast<uint8_t>(Protocol::MsgType::IMAGE_CHUNK);
-    *p++ = (uint8_t)(seq);           // seq low byte
-    *p++ = (uint8_t)(seq >> 8);      // seq high byte
+    *p++ = (uint8_t)(seq);
+    *p++ = (uint8_t)(seq >> 8);
     *p++ = (uint8_t)(payload_len);
     *p++ = (uint8_t)(payload_len >> 8);
     *p++ = (uint8_t)(payload_len >> 16);
@@ -178,7 +189,6 @@ void CamComm::_sendChunk(uint16_t seq, uint16_t frame_id,
     *p++ = Protocol::FRAME_END_2;
 
     _udpSend(buf, frame_len);
-    delete[] buf;
 }
 
 void CamComm::_sendHeartbeat(uint16_t seq) {
@@ -332,7 +342,7 @@ void CamComm::_dispatchFrame() {
     case Protocol::MsgType::HEARTBEAT:
         _client_known   = true;
         _last_hb_rx_ms  = millis();
-        _sendHeartbeat(_tx_seq++);
+        _sendHeartbeat(_nextSeq());
         break;
 
     default:
@@ -365,11 +375,38 @@ bool CamComm::_initCamera() {
     config.pin_sccb_scl = SIOC_GPIO;
     config.pin_pwdn     = PWDN_GPIO;
     config.pin_reset    = RESET_GPIO;
-    config.xclk_freq_hz = 20000000;
+    // 6 MHz is stable under WiFi RF noise on AI Thinker boards; 20 MHz causes
+    // cache/PSRAM coherency faults on rev0/rev1 silicon without the PSRAM fix.
+    config.xclk_freq_hz = 6000000;
     config.pixel_format = PIXFORMAT_JPEG;
-    config.frame_size   = FRAMESIZE_QVGA;   // 320×240
+    config.frame_size   = FRAMESIZE_QVGA;
     config.jpeg_quality = 15;
-    config.fb_count     = 1;
+    config.grab_mode    = CAMERA_GRAB_LATEST;
 
-    return esp_camera_init(&config) == ESP_OK;
+    if (psramFound()) {
+        config.fb_count    = 2;
+        config.fb_location = CAMERA_FB_IN_PSRAM;
+        Serial.println("[CAM] PSRAM found — frame buffers in PSRAM");
+    } else {
+        config.fb_count    = 1;
+        config.fb_location = CAMERA_FB_IN_DRAM;
+        Serial.println("[CAM] No PSRAM — frame buffer in DRAM");
+    }
+
+    if (esp_camera_init(&config) != ESP_OK) return false;
+
+    // Stabilise sensor: disable auto-exposure breathing and fix gain ceiling.
+    sensor_t* s = esp_camera_sensor_get();
+    if (s) {
+        s->set_framesize(s,      FRAMESIZE_QVGA);
+        s->set_quality(s,        15);
+        s->set_gainceiling(s,    GAINCEILING_2X);
+        s->set_whitebal(s,       1);
+        s->set_awb_gain(s,       1);
+        s->set_exposure_ctrl(s,  1);
+        s->set_aec2(s,           0);
+        s->set_dcw(s,            1);
+    }
+
+    return true;
 }
