@@ -68,6 +68,9 @@ private:
     volatile bool     _client_known  { false };
     volatile uint32_t _last_hb_rx_ms { 0 };
 
+    portMUX_TYPE      _seq_mux = portMUX_INITIALIZER_UNLOCKED;
+    uint16_t _nextSeq();  // thread-safe seq counter increment
+
     // Frame decoder state machine — advances byte-by-byte through:
     //   [START_1][START_2][header x7][payload x N][CRC_LO][CRC_HI][END_1][END_2]
     enum class RxState : uint8_t {

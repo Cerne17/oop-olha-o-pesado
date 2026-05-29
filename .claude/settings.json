@@ -1,0 +1,20 @@
+{
+  "enabledPlugins": {
+    "fullstack-dev-skills@fullstack-dev-skills": true,
+    "ecc@ecc": true
+  },
+  "extraKnownMarketplaces": {
+    "fullstack-dev-skills": {
+      "source": {
+        "source": "github",
+        "repo": "jeffallan/claude-skills"
+      }
+    },
+    "ecc": {
+      "source": {
+        "source": "github",
+        "repo": "affaan-m/everything-claude-code"
+      }
+    }
+  }
+}
