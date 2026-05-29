@@ -48,8 +48,8 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
     3: PhaseConfig(
         robot_port      = "192.168.1.42:5005",  # robot ESP32 WiFi IP + listen port
         robot_transport = "udp",
-        cam_port        = "192.168.1.43:5006",  # CAM ESP32 WiFi IP + listen port
-        cam_transport   = "udp",
+        cam_port        = "192.168.37.107:81",  # CAM ESP32 WiFi IP + HTTP MJPEG port
+        cam_transport   = "mjpeg",
     ),
 }
 
@@ -112,14 +112,20 @@ def _run_manual(cfg: PhaseConfig, phase: int) -> None:
 
 def _run_autonomous(cfg: PhaseConfig) -> None:
     import cv2
-    from computer.communication.cam_receiver         import CamReceiver
     from computer.communication.robot_sender         import RobotSender
     from computer.vision.computer_vision_class import ComputerVision
 
-    cam_transport   = _make_transport(cfg.cam_transport,   cfg.cam_port)
     robot_transport = _make_transport(cfg.robot_transport, cfg.robot_port)
 
-    cam_receiver = CamReceiver(cam_transport)
+    if cfg.cam_transport == "mjpeg":
+        from computer.communication.mjpeg_cam_receiver import MJPEGCamReceiver
+        host, port_str = cfg.cam_port.rsplit(":", 1)
+        cam_receiver = MJPEGCamReceiver(host, int(port_str))
+    else:
+        from computer.communication.cam_receiver import CamReceiver
+        cam_transport = _make_transport(cfg.cam_transport, cfg.cam_port)
+        cam_receiver  = CamReceiver(cam_transport)
+
     cv           = ComputerVision()
     robot_sender = RobotSender(robot_transport)
 

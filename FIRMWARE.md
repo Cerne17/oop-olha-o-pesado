@@ -84,17 +84,17 @@ Default pin assignment (`robot/src/main.cpp:11-14`):
 
 | Motor side | PWM pin | DIR pin |
 |------------|---------|---------|
-| Left wheel  | GPIO 14 | GPIO 12 |
-| Right wheel | GPIO 15 | GPIO  2 |
+| Left wheel  | GPIO ?? | GPIO ?? |
+| Right wheel | GPIO ?? | GPIO ?? |
 
 ### 2.2b Indicator outputs
 
 | Output | GPIO | Meaning |
 |--------|------|---------|
-| Yellow LED | GPIO 25 | Waiting — scanning for agent |
-| Green LED  | GPIO 26 | Following — tracking agent |
-| Red LED    | GPIO 27 | Lost — agent lost (2 s timeout) |
-| Buzzer     | GPIO 33 | Active during Lost state |
+| Yellow LED | GPIO ?? | Waiting — scanning for agent |
+| Green LED  | GPIO ?? | Following — tracking agent |
+| Red LED    | GPIO ?? | Lost — agent lost (2 s timeout) |
+| Buzzer     | GPIO ?? | Active during Lost state |
 
 Pin constants are defined in `robot/src/main.cpp` as `PIN_LED_YELLOW`, `PIN_LED_GREEN`, `PIN_LED_RED`, `PIN_BUZZER`. All driven by `RobotComm::_dispatchFrame()` on every received `CONTROL_REF` frame.
 
@@ -107,12 +107,12 @@ static constexpr WheelPins RIGHT_WHEEL = { .pwm = 15, .dir =  2 };
 ### 2.3 L298N wiring example
 
 ```
-ESP32 GPIO14 ──► L298N ENA   (left motor speed)
-ESP32 GPIO12 ──► L298N IN1   (left motor direction)
+ESP32 GPIO?? ──► L298N ENA   (left motor speed)
+ESP32 GPIO?? ──► L298N IN1   (left motor direction)
 ESP32 GND    ──► L298N GND   (common ground — required)
 
-ESP32 GPIO15 ──► L298N ENB   (right motor speed)
-ESP32 GPIO2  ──► L298N IN3   (right motor direction)
+ESP32 GPIO?? ──► L298N ENB   (right motor speed)
+ESP32 GPIO?? ──► L298N IN3   (right motor direction)
 
 L298N OUT1/OUT2 ──► left motor terminals
 L298N OUT3/OUT4 ──► right motor terminals
