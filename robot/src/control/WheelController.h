@@ -3,8 +3,8 @@
 // robot/src/control/WheelController.h — differential-drive motor controller.
 //
 // Accepts a ControlRefPayload (angle_deg + speed_ref) from the communication
-// layer and translates it to per-wheel PWM commands, enforcing a rate-limiter
-// to prevent abrupt changes that could topple cargo.
+// layer, measures actual per-wheel velocity via optic encoders, and drives
+// each wheel with an independent PID controller (position form, FF disabled).
 //
 // Wheel power formula (SPEC.md §4.2):
 //   rad   = radians(angle_deg)
@@ -13,9 +13,9 @@
 //   left  = clamp(fwd - turn, -1, 1)
 //   right = clamp(fwd + turn, -1, 1)
 //
-// Rate limiter (SPEC.md §4.3):
-//   MAX_DELTA_PER_TICK = 0.02  at  CONTROL_HZ = 50
-//   → 1.0 s ramp from 0 to full speed
+// Encoder velocity (normalized, per update() tick):
+//   y = dir_sign * clamp(Δticks / ticks_per_period_max, 0, 1)
+//   dir_sign derived from H-bridge direction pins set in previous tick.
 // =============================================================================
 
 #include <Arduino.h>
@@ -24,25 +24,34 @@
 #include "freertos/semphr.h"
 #include "../types/Protocol.h"
 #include "../types/MotorTypes.h"
+#include "PIDController.h"
 
 class WheelController {
 public:
     // -------------------------------------------------------------------------
     // Tuning constants
     // -------------------------------------------------------------------------
-    static constexpr float MAX_DELTA_PER_TICK = 0.02f;  // max power change per tick
-    static constexpr int   CONTROL_HZ         = 50;     // update() call frequency
+    static constexpr int CONTROL_HZ = 50;  // update() call frequency
 
     // -------------------------------------------------------------------------
     // Construction
     // -------------------------------------------------------------------------
-    WheelController(WheelPins left, WheelPins right);
 
-    // Configure LEDC PWM channels and GPIO directions.
+    // enc_left_pin / enc_right_pin  — GPIO pins wired to encoder signal outputs.
+    // ticks_per_period_max          — ticks counted in one 20 ms period at full
+    //                                  speed on flat ground; calibrate empirically.
+    // kp / ki / kd                  — PID gains, same for both wheels (tune in
+    //                                  main.cpp; both wheels share the same plant).
+    WheelController(WheelPins left, WheelPins right,
+                    uint8_t enc_left_pin, uint8_t enc_right_pin,
+                    float ticks_per_period_max,
+                    float kp, float ki, float kd);
+
+    // Configure LEDC PWM channels, GPIO directions, and attach encoder ISRs.
     void begin();
 
     // -------------------------------------------------------------------------
-    // Reference input — called from BT receive context (any task)
+    // Reference input — called from UDP receive task (any task)
     // -------------------------------------------------------------------------
 
     // Set the desired motion reference. Thread-safe (mutex-protected).
@@ -54,24 +63,22 @@ public:
 
     // 1. Read current reference atomically.
     // 2. Compute target wheel speeds (_computeTargets).
-    // 3. Slew actual speeds toward targets (rate limiter).
-    // 4. Write PWM to H-bridge.
+    // 3. Measure actual wheel velocities from encoders.
+    // 4. Run per-wheel PID.
+    // 5. Write PWM to H-bridge.
     void update();
 
-    // Immediate hardware stop — bypasses the rate limiter.
+    // Immediate hardware stop — resets PID state and zeroes PWM.
     // Use only for emergency / safety shutdowns.
     void emergencyStop();
 
-    // Diagnostics (no mutex needed — floats are atomic on Xtensa)
+    // Diagnostics — returns last measured normalized velocity per wheel.
     float currentLeft()  const { return _current_left;  }
     float currentRight() const { return _current_right; }
 
 private:
     WheelSpeeds _computeTargets(float angle_deg, float speed_ref) const;
     void        _driveMotor(const WheelPins& pins, uint8_t channel, float power);
-
-    // Advances `current` toward `target` by at most MAX_DELTA_PER_TICK.
-    static float _slew(float current, float target);
 
     static float _clamp(float v, float lo, float hi) {
         return v < lo ? lo : (v > hi ? hi : v);
@@ -83,19 +90,29 @@ private:
     WheelPins _left;
     WheelPins _right;
 
-    static constexpr uint8_t LEFT_CHANNEL  = 2;
-    static constexpr uint8_t RIGHT_CHANNEL = 3;
-    static constexpr uint32_t PWM_FREQ     = 5000;   // Hz
-    static constexpr uint8_t  PWM_RES_BITS = 8;      // 0–255
+    uint8_t _enc_left_pin;
+    uint8_t _enc_right_pin;
+
+    static constexpr uint8_t  LEFT_CHANNEL  = 2;
+    static constexpr uint8_t  RIGHT_CHANNEL = 3;
+    static constexpr uint32_t PWM_FREQ      = 5000;  // Hz
+    static constexpr uint8_t  PWM_RES_BITS  = 8;     // 0–255
+
+    // -------------------------------------------------------------------------
+    // PID controllers (one per wheel)
+    // -------------------------------------------------------------------------
+    float         _ticks_per_period_max;
+    PIDController _pid_left;
+    PIDController _pid_right;
 
     // -------------------------------------------------------------------------
     // State — reference (written by UDP task, read by control task)
     // -------------------------------------------------------------------------
-    SemaphoreHandle_t          _ref_mutex;
-    Protocol::ControlRefPayload _ref {};  // zero-init: stopped, buzzer off, leds off
+    SemaphoreHandle_t           _ref_mutex;
+    Protocol::ControlRefPayload _ref {};
 
     // -------------------------------------------------------------------------
-    // State — current (smoothed) wheel powers (only written by control task)
+    // State — last measured velocities (written by control task only)
     // -------------------------------------------------------------------------
     float _current_left  { 0.0f };
     float _current_right { 0.0f };

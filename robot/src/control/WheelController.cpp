@@ -4,32 +4,60 @@
 // WheelController — implementation
 // =============================================================================
 
-WheelController::WheelController(WheelPins left, WheelPins right)
-    : _left(left), _right(right)
+// ---------------------------------------------------------------------------
+// Encoder ISR state — file-scope so ISRs (static functions) can access them.
+// IRAM_ATTR places variables in IRAM for fast ISR access on ESP32.
+// ---------------------------------------------------------------------------
+static volatile int32_t IRAM_ATTR s_enc_left_ticks  = 0;
+static volatile int32_t IRAM_ATTR s_enc_right_ticks = 0;
+static portMUX_TYPE s_enc_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static void IRAM_ATTR leftEncoderISR()  { s_enc_left_ticks++;  }
+static void IRAM_ATTR rightEncoderISR() { s_enc_right_ticks++; }
+
+// ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
+WheelController::WheelController(WheelPins left, WheelPins right,
+                                  uint8_t enc_left_pin, uint8_t enc_right_pin,
+                                  float ticks_per_period_max,
+                                  float kp, float ki, float kd)
+    : _left(left), _right(right),
+      _enc_left_pin(enc_left_pin), _enc_right_pin(enc_right_pin),
+      _ticks_per_period_max(ticks_per_period_max),
+      _pid_left (kp, ki, kd, 1.0f / CONTROL_HZ),
+      _pid_right(kp, ki, kd, 1.0f / CONTROL_HZ)
 {
     _ref_mutex = xSemaphoreCreateMutex();
 }
 
 void WheelController::begin() {
-    // Configure LEDC PWM channels
+    // LEDC PWM channels
     ledcSetup(LEFT_CHANNEL,  PWM_FREQ, PWM_RES_BITS);
     ledcSetup(RIGHT_CHANNEL, PWM_FREQ, PWM_RES_BITS);
     ledcAttachPin(_left.en,  LEFT_CHANNEL);
     ledcAttachPin(_right.en, RIGHT_CHANNEL);
 
-    // Configure direction pins
-    pinMode(_left.right,   OUTPUT);
-    pinMode(_right.right,  OUTPUT);
+    // Direction pins
+    pinMode(_left.right,  OUTPUT);
+    pinMode(_right.right, OUTPUT);
     pinMode(_left.left,   OUTPUT);
     pinMode(_right.left,  OUTPUT);
 
-    // Start stopped — coast state (IN1=LOW, IN2=LOW, ENA=0)
+    // Start in coast state
     ledcWrite(LEFT_CHANNEL,  0);
     ledcWrite(RIGHT_CHANNEL, 0);
     digitalWrite(_left.right,  LOW);
     digitalWrite(_right.right, LOW);
-    digitalWrite(_left.left,  LOW);
-    digitalWrite(_right.left, LOW);
+    digitalWrite(_left.left,   LOW);
+    digitalWrite(_right.left,  LOW);
+
+    // Encoder pins — rising edge per slot
+    pinMode(_enc_left_pin,  INPUT_PULLUP);
+    pinMode(_enc_right_pin, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(_enc_left_pin),  leftEncoderISR,  RISING);
+    attachInterrupt(digitalPinToInterrupt(_enc_right_pin), rightEncoderISR, RISING);
 }
 
 // ---------------------------------------------------------------------------
@@ -56,22 +84,38 @@ void WheelController::update() {
     // 2. Compute targets
     WheelSpeeds targets = _computeTargets(ref.angle_deg, ref.speed_ref);
 
-    // 3. Rate-limited slew — ramps each wheel toward its target
-    _current_left  = _slew(_current_left,  targets.left);
-    _current_right = _slew(_current_right, targets.right);
+    // 3. Measure velocity — atomically read and reset tick counters
+    int32_t left_ticks, right_ticks;
+    portENTER_CRITICAL(&s_enc_mux);
+    left_ticks  = s_enc_left_ticks;  s_enc_left_ticks  = 0;
+    right_ticks = s_enc_right_ticks; s_enc_right_ticks = 0;
+    portEXIT_CRITICAL(&s_enc_mux);
 
-    // 4. Write to H-bridge
-    _driveMotor(_left,  LEFT_CHANNEL,  _current_left);
-    _driveMotor(_right, RIGHT_CHANNEL, _current_right);
+    // Derive direction sign from H-bridge pins set in the previous tick.
+    // Invert flag corrects for physically mirrored wheels.
+    float dir_left  = (digitalRead(_left.right)  ? 1.0f : -1.0f)
+                    * (_left.invert  ? -1.0f : 1.0f);
+    float dir_right = (digitalRead(_right.right) ? 1.0f : -1.0f)
+                    * (_right.invert ? -1.0f : 1.0f);
+
+    float y_left  = dir_left  * _clamp((float)left_ticks  / _ticks_per_period_max, 0.0f, 1.0f);
+    float y_right = dir_right * _clamp((float)right_ticks / _ticks_per_period_max, 0.0f, 1.0f);
+
+    // Store for diagnostics
+    _current_left  = y_left;
+    _current_right = y_right;
+
+    // 4. PID
+    float u_left  = _pid_left.compute(targets.left,  y_left);
+    float u_right = _pid_right.compute(targets.right, y_right);
+
+    // 5. Drive H-bridge
+    _driveMotor(_left,  LEFT_CHANNEL,  u_left);
+    _driveMotor(_right, RIGHT_CHANNEL, u_right);
 }
 
 void WheelController::emergencyStop() {
-    _current_left  = 0.0f;
-    _current_right = 0.0f;
-
-    // Drive H-bridge to coast state: EN=0, IN1=LOW, IN2=LOW.
-    // Both direction pins must be cleared — leaving either HIGH with EN=0
-    // is harmless electrically, but inconsistent with begin() and confusing.
+    // Zero H-bridge: EN=0, direction pins LOW (coast state)
     ledcWrite(LEFT_CHANNEL,  0);
     ledcWrite(RIGHT_CHANNEL, 0);
     digitalWrite(_left.right,  LOW);
@@ -79,21 +123,16 @@ void WheelController::emergencyStop() {
     digitalWrite(_right.right, LOW);
     digitalWrite(_right.left,  LOW);
 
-    // Zero the stored reference so the next update() stays stopped.
+    // Reset PID state so stale integral does not spike on resume
+    _pid_left.reset();
+    _pid_right.reset();
+
+    _current_left  = 0.0f;
+    _current_right = 0.0f;
+
     xSemaphoreTake(_ref_mutex, portMAX_DELAY);
     _ref = {};
     xSemaphoreGive(_ref_mutex);
-}
-
-// ---------------------------------------------------------------------------
-// Rate limiter
-// ---------------------------------------------------------------------------
-
-float WheelController::_slew(float current, float target) {
-    float delta = target - current;
-    if (delta >  MAX_DELTA_PER_TICK) delta =  MAX_DELTA_PER_TICK;
-    if (delta < -MAX_DELTA_PER_TICK) delta = -MAX_DELTA_PER_TICK;
-    return current + delta;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,11 +162,11 @@ void WheelController::_driveMotor(const WheelPins& pins,
 
     if (power >= 0.0f) {
         digitalWrite(pins.right, HIGH);
-        digitalWrite(pins.left, LOW);
+        digitalWrite(pins.left,  LOW);
         ledcWrite(channel, (uint32_t)(power * 255.0f));
     } else {
         digitalWrite(pins.right, LOW);
-        digitalWrite(pins.left, HIGH);
+        digitalWrite(pins.left,  HIGH);
         ledcWrite(channel, (uint32_t)(-power * 255.0f));
     }
 }
