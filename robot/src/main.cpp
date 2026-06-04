@@ -8,10 +8,10 @@
 static constexpr uint16_t UDP_PORT = 5005;
 
 // Indicator outputs
-static constexpr uint8_t PIN_LED_YELLOW = 32;
-static constexpr uint8_t PIN_LED_GREEN = 33;
-static constexpr uint8_t PIN_LED_RED = 35;
-static constexpr uint8_t PIN_BUZZER = 34;
+static constexpr uint8_t PIN_LED_YELLOW = 16;
+static constexpr uint8_t PIN_LED_GREEN = 17;
+static constexpr uint8_t PIN_LED_RED = 22;
+static constexpr uint8_t PIN_BUZZER = 4;
 
 // On-board LED (GPIO2 on this board) — toggled on every received command
 // as a visual "RX activity" indicator. See RobotComm::_dispatchFrame().
@@ -19,7 +19,7 @@ static constexpr uint8_t PIN_LED_BUILTIN = 2;
 
 // Left wheel  — ENA=GPIO14, IN1=GPIO12 (clockwise), IN2=GPIO13
 // (counter-clockwise)
-static constexpr WheelPins LEFT_WHEEL = {.en = 14, .right = 12, .left = 13};
+static constexpr WheelPins LEFT_WHEEL = {.en = 13, .right = 14, .left = 12};
 
 // Right wheel — ENB=GPIO25, IN3=GPIO26  (clockwise), IN4=GPIO27
 // (counter-clockwise)

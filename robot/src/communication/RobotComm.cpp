@@ -226,10 +226,10 @@ void RobotComm::_dispatchFrame() {
             Protocol::ControlRefPayload ref;
             memcpy(&ref, _payload_buf, sizeof(ref));
             _wheel.setRef(ref);
-            digitalWrite(33, ref.buzzer ? HIGH : LOW);
-            digitalWrite(25, (ref.leds & 0x01) ? HIGH : LOW);  // yellow
-            digitalWrite(26, (ref.leds & 0x02) ? HIGH : LOW);  // green
-            digitalWrite(27, (ref.leds & 0x04) ? HIGH : LOW);  // red
+            digitalWrite(4, ref.buzzer ? HIGH : LOW);
+            digitalWrite(16, (ref.leds & 0x01) ? HIGH : LOW);  // yellow
+            digitalWrite(17, (ref.leds & 0x02) ? HIGH : LOW);  // green
+            digitalWrite(22, (ref.leds & 0x04) ? HIGH : LOW);  // red
             _sendAck(_rx.seq_num, Protocol::AckStatus::OK);
 
             // Blink the on-board LED (GPIO2) on every received command so the
