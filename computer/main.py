@@ -30,6 +30,8 @@ class PhaseConfig:
     cam_port:        str | None = None
     cam_transport:   str | None = None
 
+ROBOT_IP = "10.231.207.240:5005"
+CAM_IP = "10.231.207.112:81"
 
 # Phase 1 -- manual, TCP loopback to robot emulator
 # Phase 2 -- manual, physical robot over UDP/WiFi (ESP32 IP:port)
@@ -41,14 +43,14 @@ PHASE_CONFIGS: dict[int, PhaseConfig] = {
         cam_port        = None,
     ),
     2: PhaseConfig(
-        robot_port      = "10.221.47.106:5005",  # ESP32 WiFi IP + listen port
+        robot_port      = ROBOT_IP,  # ESP32 WiFi IP + listen port
         robot_transport = "udp",
         cam_port        = None,
     ),
     3: PhaseConfig(
-        robot_port      = "10.221.47.106:5005",  # robot ESP32 WiFi IP + listen port
+        robot_port      = ROBOT_IP,  # robot ESP32 WiFi IP + listen port
         robot_transport = "udp",
-        cam_port        = "192.168.37.107:81",  # CAM ESP32 WiFi IP + HTTP MJPEG port
+        cam_port        = CAM_IP,  # CAM ESP32 WiFi IP + HTTP MJPEG port
         cam_transport   = "mjpeg",
     ),
 }
