@@ -117,6 +117,10 @@ WheelSpeeds WheelController::_computeTargets(float angle_deg,
 
 void WheelController::_driveMotor(const WheelPins& pins,
                                    uint8_t channel, float power) {
+    if (pins.invert) {
+        power = -power;
+    }
+
     if (power >= 0.0f) {
         digitalWrite(pins.right, HIGH);
         digitalWrite(pins.left, LOW);

@@ -28,6 +28,8 @@ struct WheelPins {
     uint8_t right;  // IN1/IN3 — drive HIGH to spin the motor clockwise
     uint8_t left;   // IN2/IN4 — drive HIGH to spin the motor counter-clockwise
                     //           (always the complement of `right`)
+    bool    invert; // true if this wheel is physically mirrored and its
+                    //        direction sense must be reversed
 };
 
 // Normalised per-wheel power target or reading
