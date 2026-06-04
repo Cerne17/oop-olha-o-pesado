@@ -141,7 +141,7 @@ void WheelController::emergencyStop() {
 
 WheelSpeeds WheelController::_computeTargets(float angle_deg,
                                               float speed_ref) const {
-    float rad  = angle_deg * (float)M_PI / 180.0f;
+    float rad  = - angle_deg * (float)M_PI / 180.0f;
     float fwd  = speed_ref * cosf(rad);
     float turn = speed_ref * sinf(rad);
     return {
