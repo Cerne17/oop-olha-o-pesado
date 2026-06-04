@@ -227,17 +227,7 @@ void RobotComm::_dispatchFrame() {
             memcpy(&ref, _payload_buf, sizeof(ref));
             _wheel.setRef(ref);
             digitalWrite(4, ref.buzzer ? HIGH : LOW);
-            digitalWrite(16, (ref.leds & 0x01) ? HIGH : LOW);  // yellow
-            digitalWrite(17, (ref.leds & 0x02) ? HIGH : LOW);  // green
-            digitalWrite(22, (ref.leds & 0x04) ? HIGH : LOW);  // red
             _sendAck(_rx.seq_num, Protocol::AckStatus::OK);
-
-            // Blink the on-board LED (GPIO2) on every received command so the
-            // RX activity is visible at a glance. Toggling at the 20 Hz command
-            // rate produces a steady flicker that freezes when the link drops.
-            static bool led_on = false;
-            led_on = !led_on;
-            digitalWrite(2, led_on ? HIGH : LOW);
 
             // Debug log throttled to ~1 Hz so the 20 Hz command stream does
             // not flood the serial monitor (or stall this RX task).

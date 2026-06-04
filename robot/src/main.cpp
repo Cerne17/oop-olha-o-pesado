@@ -7,15 +7,7 @@
 // ---------------------------------------------------------------------------
 static constexpr uint16_t UDP_PORT = 5005;
 
-// Indicator outputs
-static constexpr uint8_t PIN_LED_YELLOW = 16;
-static constexpr uint8_t PIN_LED_GREEN = 17;
-static constexpr uint8_t PIN_LED_RED = 22;
 static constexpr uint8_t PIN_BUZZER = 4;
-
-// On-board LED (GPIO2 on this board) — toggled on every received command
-// as a visual "RX activity" indicator. See RobotComm::_dispatchFrame().
-static constexpr uint8_t PIN_LED_BUILTIN = 2;
 
 // Left wheel  — ENA=GPIO13, IN1=GPIO14 (clockwise), IN2=GPIO12
 static constexpr WheelPins LEFT_WHEEL  = {.en = 13, .right = 14, .left = 12};
@@ -23,10 +15,8 @@ static constexpr WheelPins LEFT_WHEEL  = {.en = 13, .right = 14, .left = 12};
 // Right wheel — ENB=GPIO25, IN3=GPIO26 (clockwise), IN4=GPIO27
 static constexpr WheelPins RIGHT_WHEEL = {.en = 25, .right = 26, .left = 27, .invert = true};
 
-// Encoder signal pins — connect optic encoder output to these GPIOs.
-// TODO: set to actual wired pins before flashing.
-static constexpr uint8_t ENC_LEFT_PIN  = 34;
-static constexpr uint8_t ENC_RIGHT_PIN = 35;
+static constexpr uint8_t ENC_LEFT_PIN  = 22;
+static constexpr uint8_t ENC_RIGHT_PIN = 23;
 
 // Ticks counted in one 20 ms period at full PWM on flat ground.
 // Run with Kp=0/Ki=0/Kd=0 at full speed and Serial-print Δticks to calibrate.
@@ -50,16 +40,8 @@ void setup() {
   delay(500);
   Serial.println("=== Robot ESP32 booting ===");
 
-  pinMode(PIN_LED_YELLOW, OUTPUT);
-  digitalWrite(PIN_LED_YELLOW, LOW);
-  pinMode(PIN_LED_GREEN, OUTPUT);
-  digitalWrite(PIN_LED_GREEN, LOW);
-  pinMode(PIN_LED_RED, OUTPUT);
-  digitalWrite(PIN_LED_RED, LOW);
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, LOW);
-  pinMode(PIN_LED_BUILTIN, OUTPUT);
-  digitalWrite(PIN_LED_BUILTIN, LOW);
 
   wheels.begin();
   robot.begin();
