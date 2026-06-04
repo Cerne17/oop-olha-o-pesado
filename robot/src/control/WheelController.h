@@ -31,7 +31,8 @@ public:
     // -------------------------------------------------------------------------
     // Tuning constants
     // -------------------------------------------------------------------------
-    static constexpr int CONTROL_HZ = 50;  // update() call frequency
+    static constexpr int   CONTROL_HZ        = 50;    // update() call frequency
+    static constexpr float MAX_DELTA_PER_TICK = 0.02f; // max reference change per tick (1 s ramp)
 
     // -------------------------------------------------------------------------
     // Construction
@@ -80,6 +81,8 @@ private:
     WheelSpeeds _computeTargets(float angle_deg, float speed_ref) const;
     void        _driveMotor(const WheelPins& pins, uint8_t channel, float power);
 
+    static float _slew(float current, float target);
+
     static float _clamp(float v, float lo, float hi) {
         return v < lo ? lo : (v > hi ? hi : v);
     }
@@ -110,6 +113,12 @@ private:
     // -------------------------------------------------------------------------
     SemaphoreHandle_t           _ref_mutex;
     Protocol::ControlRefPayload _ref {};
+
+    // -------------------------------------------------------------------------
+    // State — slewed reference (written by control task only)
+    // -------------------------------------------------------------------------
+    float _slew_left  { 0.0f };
+    float _slew_right { 0.0f };
 
     // -------------------------------------------------------------------------
     // State — last measured velocities (written by control task only)

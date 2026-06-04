@@ -81,8 +81,10 @@ void WheelController::update() {
     ref = _ref;
     xSemaphoreGive(_ref_mutex);
 
-    // 2. Compute targets
+    // 2. Compute targets and apply reference slew
     WheelSpeeds targets = _computeTargets(ref.angle_deg, ref.speed_ref);
+    _slew_left  = _slew(_slew_left,  targets.left);
+    _slew_right = _slew(_slew_right, targets.right);
 
     // 3. Measure velocity — atomically read and reset tick counters
     int32_t left_ticks, right_ticks;
@@ -105,9 +107,9 @@ void WheelController::update() {
     _current_left  = y_left;
     _current_right = y_right;
 
-    // 4. PID
-    float u_left  = _pid_left.compute(targets.left,  y_left);
-    float u_right = _pid_right.compute(targets.right, y_right);
+    // 4. PID on slewed reference
+    float u_left  = _pid_left.compute(_slew_left,  y_left);
+    float u_right = _pid_right.compute(_slew_right, y_right);
 
     // 5. Drive H-bridge
     _driveMotor(_left,  LEFT_CHANNEL,  u_left);
@@ -123,9 +125,11 @@ void WheelController::emergencyStop() {
     digitalWrite(_right.right, LOW);
     digitalWrite(_right.left,  LOW);
 
-    // Reset PID state so stale integral does not spike on resume
+    // Reset PID and slew state so stale integral/ramp does not spike on resume
     _pid_left.reset();
     _pid_right.reset();
+    _slew_left  = 0.0f;
+    _slew_right = 0.0f;
 
     _current_left  = 0.0f;
     _current_right = 0.0f;
@@ -148,6 +152,17 @@ WheelSpeeds WheelController::_computeTargets(float angle_deg,
         _clamp(fwd - turn, -1.0f, 1.0f),
         _clamp(fwd + turn, -1.0f, 1.0f),
     };
+}
+
+// ---------------------------------------------------------------------------
+// Reference slew limiter
+// ---------------------------------------------------------------------------
+
+float WheelController::_slew(float current, float target) {
+    float delta = target - current;
+    if (delta >  MAX_DELTA_PER_TICK) delta =  MAX_DELTA_PER_TICK;
+    if (delta < -MAX_DELTA_PER_TICK) delta = -MAX_DELTA_PER_TICK;
+    return current + delta;
 }
 
 // ---------------------------------------------------------------------------
