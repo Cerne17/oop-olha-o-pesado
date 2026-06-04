@@ -33,6 +33,7 @@ public:
     // -------------------------------------------------------------------------
     static constexpr int   CONTROL_HZ        = 50;    // update() call frequency
     static constexpr float MAX_DELTA_PER_TICK = 0.02f; // max reference change per tick (1 s ramp)
+    static constexpr float ZERO_REF_BAND      = 0.02f; // |slew| below this → release motor, reset PID
 
     // -------------------------------------------------------------------------
     // Construction

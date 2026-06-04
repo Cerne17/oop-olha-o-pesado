@@ -18,6 +18,23 @@ from computer.types.transport import Transport
 from .protocol import ControlRefPayload, FrameEncoder, RobotMsg
 
 
+# ANSI colours + state name keyed by one-hot LED code (see ControlSignal.leds)
+_RESET = "\033[0m"
+_LED_STATE = {
+    0b001: ("\033[93m", "WAITING"),    # yellow
+    0b010: ("\033[92m", "FOLLOWING"),  # green
+    0b100: ("\033[91m", "LOST"),       # red
+}
+
+
+def _log_signal(signal: ControlSignal) -> None:
+    """Print the reference signal being sent, colourised by LED state."""
+    colour, state = _LED_STATE.get(signal.leds, (_RESET, "DESLIGADO"))
+    line = (f"[ROBÔ] {state:9} | Angulo: {signal.angle_deg:6.1f}° "
+            f"| Vel: {signal.speed_ref:5.2f} | Buzzer: {int(signal.buzzer)}")
+    print(f"{colour}{line}{_RESET}")
+
+
 class RobotSender(ControlObserver):
     """
     Parameters
@@ -133,6 +150,7 @@ class RobotSender(ControlObserver):
                     frame   = self._encoder.build_control_ref(self._next_seq(), payload)
                     self._transport.send(frame)
                     self._tx_frames += 1
+                    _log_signal(signal)
 
                 # Heartbeat if no CONTROL_REF was sent recently
                 now = time.monotonic()

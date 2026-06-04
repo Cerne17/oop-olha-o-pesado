@@ -86,18 +86,34 @@ void WheelController::update() {
     _slew_left  = _slew(_slew_left,  targets.left);
     _slew_right = _slew(_slew_right, targets.right);
 
-    // 3. Measure velocity — atomically read and reset tick counters
+    // 3. Zero-reference band — when both wheels are commanded to rest, release
+    // the motors and reset PID state. A single-channel encoder reports only
+    // magnitude, so near zero the velocity sign is undefined; running the PID
+    // here would chatter forever and keep the motors energised. Bail early.
+    if (fabsf(_slew_left) < ZERO_REF_BAND && fabsf(_slew_right) < ZERO_REF_BAND) {
+        _pid_left.reset();
+        _pid_right.reset();
+        _driveMotor(_left,  LEFT_CHANNEL,  0.0f);
+        _driveMotor(_right, RIGHT_CHANNEL, 0.0f);
+        _current_left  = 0.0f;
+        _current_right = 0.0f;
+        return;
+    }
+
+    // 4. Measure velocity — atomically read and reset tick counters
     int32_t left_ticks, right_ticks;
     portENTER_CRITICAL(&s_enc_mux);
     left_ticks  = s_enc_left_ticks;  s_enc_left_ticks  = 0;
     right_ticks = s_enc_right_ticks; s_enc_right_ticks = 0;
     portEXIT_CRITICAL(&s_enc_mux);
 
-    // Derive direction sign from H-bridge pins set in the previous tick.
-    // Invert flag corrects for physically mirrored wheels.
-    float dir_left  = (digitalRead(_left.right)  ? 1.0f : -1.0f)
+    // Direction sign comes from the *intended* (slewed reference) direction, not
+    // the previous output. The encoder is single-channel (magnitude only); taking
+    // the sign from the PID's own last command creates a positive-feedback loop
+    // with no stable u=0 fixed point. Invert flag corrects mirrored wheels.
+    float dir_left  = (_slew_left  >= 0.0f ? 1.0f : -1.0f)
                     * (_left.invert  ? -1.0f : 1.0f);
-    float dir_right = (digitalRead(_right.right) ? 1.0f : -1.0f)
+    float dir_right = (_slew_right >= 0.0f ? 1.0f : -1.0f)
                     * (_right.invert ? -1.0f : 1.0f);
 
     float y_left  = dir_left  * _clamp((float)left_ticks  / _ticks_per_period_max, 0.0f, 1.0f);

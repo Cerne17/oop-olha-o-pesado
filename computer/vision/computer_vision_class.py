@@ -85,7 +85,7 @@ class ComputerVision(FrameObserver, ControlObservable):
         # Variáveis do Controle de Rastreamento
         self.tamanho_alvo_ref = None
         # Ajustar na pratica os valores abaixo
-        self.kp_velocidade = 0.02  # ganho de velocidade v = (kp * dif_tamanho_tronco)
+        self.kp_velocidade = 0.002  # ganho de velocidade v = (kp * dif_tamanho_tronco)
         self.angle_max = 90.0  # angulo caso alvo esteja na borda da imagem
 
     # -------------------------------------------------------------------------
