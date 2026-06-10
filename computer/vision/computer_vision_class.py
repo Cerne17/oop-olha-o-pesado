@@ -85,8 +85,8 @@ class ComputerVision(FrameObserver, ControlObservable):
         # Variáveis do Controle de Rastreamento
         self.tamanho_alvo_ref = None
         # Ajustar na pratica os valores abaixo
-        self.kp_velocidade = 0.002  # ganho de velocidade v = (kp * dif_tamanho_tronco)
-        self.angle_max = 90.0  # angulo caso alvo esteja na borda da imagem
+        self.kp_velocidade = 0.05  # ganho de velocidade v = (kp * dif_tamanho_tronco)
+        self.angle_max = -150.0  # angulo caso alvo esteja na borda da imagem
 
     # -------------------------------------------------------------------------
     # INTERFACE DE ENTRADA: O sinalizador avisa por aqui quando há um novo frame
@@ -233,7 +233,7 @@ class ComputerVision(FrameObserver, ControlObservable):
                 centro_bbox_x = (bbox[0] + bbox[2]) / 2.0
                 erro_x = centro_bbox_x - centro_img_x
                 limite_zona_morta_angulo = (
-                    img_width * 0.05
+                    img_width * 0.03
                 )  # define limite de largura onde angulo permanece 0
                 if abs(erro_x) <= limite_zona_morta_angulo:
                     # Pessoa está no meio, vai reto
@@ -245,13 +245,15 @@ class ComputerVision(FrameObserver, ControlObservable):
                 # Velocidade (altura do tronco)
                 erro_tamanho_tronco = self.tamanho_alvo_ref - tamanho_tronco_atual
                 limite_zona_morta_velocidade = (
-                    self.tamanho_alvo_ref * 0.1
+                    self.tamanho_alvo_ref * 0.02
                 )  # Ignora variações pequenas
                 if abs(erro_tamanho_tronco) <= limite_zona_morta_velocidade:
                     velocidade_calculada = 0.0
                 else:
                     # Aplica o Controle Proporcional
                     velocidade_calculada = self.kp_velocidade * erro_tamanho_tronco
+                    if velocidade_calculada < 0 :
+                        velocidade_calculada = velocidade_calculada - 0.5
                     # Garante velocidade dentro dos limites estabelecidos
                     velocidade_calculada = max(-1.0, min(1.0, velocidade_calculada))
 

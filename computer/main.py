@@ -30,8 +30,8 @@ class PhaseConfig:
     cam_port:        str | None = None
     cam_transport:   str | None = None
 
-ROBOT_IP = "10.231.207.240:5005"
-CAM_IP = "10.231.207.112:81"
+ROBOT_IP = "10.171.56.240:5005"
+CAM_IP = "10.171.56.112:81"
 
 # Phase 1 -- manual, TCP loopback to robot emulator
 # Phase 2 -- manual, physical robot over UDP/WiFi (ESP32 IP:port)
